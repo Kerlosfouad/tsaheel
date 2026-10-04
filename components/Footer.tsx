@@ -56,13 +56,14 @@ export const Footer: React.FC = () => {
 
         </div>
 
-        {/* Legal Disclaimer Box */}
-        <div className="my-6 p-4 rounded-2xl bg-brand-950/60 border border-brand-800 flex items-start gap-3 text-xs text-brand-300 font-medium leading-relaxed">
-          <ShieldAlert className="w-5 h-5 text-accent-400 shrink-0 mt-0.5" />
-          <p>
-            <strong className="text-accent-300 font-bold ml-1">إخلاء مسؤولية:</strong>
-            الحساب تقديري ولا يمثل عرضًا نهائيًا أو التزامًا من الشركة. القيمة النهائية للأقساط ونسبة الفائدة تُحدد بعد الاستعلام الائتماني والميداني واستيفاء المستندات وموافقة لجنة التمويل بالشركة وفقاً للسياسات الائتمانية المعمول بها.
-          </p>
+        {/* Developer Credit Box */}
+        <div className="my-6 p-4 rounded-2xl bg-brand-950/70 border border-brand-800 flex items-center justify-center text-center text-xs text-brand-200 font-medium leading-relaxed shadow-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+            <span className="text-white font-bold">من تطوير:</span>
+            <span className="text-accent-300 font-black text-sm">بشمهندس كيرلس فؤاد شفيق</span>
+            <span className="hidden sm:inline text-brand-400">•</span>
+            <span className="text-brand-200 font-bold">عضو رقابة كوم الفرج</span>
+          </div>
         </div>
 
         {/* Copyright */}
