@@ -61,16 +61,16 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ result }) => {
         id="schedule-table-content"
         className={`${isExpanded ? "block" : "hidden"} transition-all`}
       >
-        <div className="overflow-x-auto max-h-[480px]">
-          <table className="w-full text-right border-collapse text-xs sm:text-sm">
+        <div className="overflow-x-auto max-h-[480px] -mx-1 sm:mx-0">
+          <table className="w-full min-w-[500px] text-right border-collapse text-xs sm:text-sm">
             <thead className="sticky top-0 bg-surface-100 border-b border-surface-200 text-brand-900 font-extrabold z-10">
               <tr>
-                <th className="py-3.5 px-4 text-center w-16">#</th>
-                <th className="py-3.5 px-4">موعد الاستحقاق</th>
-                <th className="py-3.5 px-4">قيمة القسط</th>
-                <th className="py-3.5 px-4">جزء الفائدة</th>
-                <th className="py-3.5 px-4">أصل المبلغ</th>
-                <th className="py-3.5 px-4">الرصيد المتبقي</th>
+                <th className="py-3 px-3 text-center w-12">#</th>
+                <th className="py-3 px-3">موعد الاستحقاق</th>
+                <th className="py-3 px-3">قيمة القسط</th>
+                <th className="py-3 px-3">جزء الفائدة</th>
+                <th className="py-3 px-3">أصل المبلغ</th>
+                <th className="py-3 px-3">الرصيد المتبقي</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-200">

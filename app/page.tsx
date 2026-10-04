@@ -6,7 +6,6 @@ import { Hero } from "../components/Hero";
 import { CalculatorForm } from "../components/CalculatorForm";
 import { ResultCard } from "../components/ResultCard";
 import { ScheduleTable } from "../components/ScheduleTable";
-import { TrustRow } from "../components/TrustRow";
 import { Footer } from "../components/Footer";
 import { FormState, CalculationResult } from "../lib/types";
 import { validateForm } from "../lib/validation";
@@ -106,9 +105,9 @@ export default function Home() {
         </div>
 
         {/* 2-Column Responsive Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
           
-          {/* Left / Top Form (7 Cols on desktop) */}
+          {/* Left / Top Form (6 Cols on desktop) */}
           <div className="lg:col-span-6 space-y-6">
             <CalculatorForm
               form={form}
@@ -131,9 +130,6 @@ export default function Home() {
           </div>
 
         </div>
-
-        {/* Trust & Value Pillars */}
-        <TrustRow />
 
       </main>
 
