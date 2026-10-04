@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Tasaheel Brand Colors */
+  --brand-primary: #0B7A5A;
+  --brand-50: #EBF7F2;
+  --brand-100: #D3EFE4;
+  --brand-200: #A8DFCA;
+  --brand-300: #7DCFB0;
+  --brand-400: #3DB88F;
+  --brand-500: #0B7A5A;
+  --brand-600: #09684C;
+  --brand-700: #07543E;
+  --brand-800: #054130;
+  --brand-900: #032E22;
+
+  --accent-primary: #F5A623;
+  --accent-50: #FEF8ED;
+  --accent-100: #FDEED3;
+  --accent-200: #FBDDA7;
+  --accent-400: #F7B547;
+  --accent-500: #F5A623;
+  --accent-600: #D98A10;
+
+  --surface-50: #F7F9F8;
+  --surface-100: #EEF2F0;
+  --surface-200: #E2E8E5;
+  --surface-card: #FFFFFF;
+  --surface-border: #E2E8E5;
+  
+  --text-main: #13221E;
+  --text-muted: #53645F;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root.auto-dark {
+    --brand-primary: #149D75;
+    --brand-50: #0C2B22;
+    --brand-100: #123C30;
+    --brand-200: #1B5041;
+    --brand-300: #256B57;
+    --brand-400: #149D75;
+    --brand-500: #128C69;
+    --brand-600: #0F7356;
+    --brand-700: #0B5741;
+    --brand-800: #083D2E;
+    --brand-900: #042119;
+
+    --accent-primary: #F7B547;
+    --accent-50: #2B200C;
+    --accent-100: #423113;
+    --accent-200: #6B4E1B;
+    --accent-400: #F7B547;
+    --accent-500: #F5A623;
+    --accent-600: #E0951C;
+
+    --surface-50: #0F1714;
+    --surface-100: #15221E;
+    --surface-200: #1F302A;
+    --surface-card: #182622;
+    --surface-border: #283C35;
+
+    --text-main: #F0F7F4;
+    --text-muted: #9AB3A9;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+body {
+  background-color: var(--surface-50);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Custom range slider styling */
+input[type="range"] {
+  accent-color: var(--brand-primary);
+}
+
+/* Custom scrollbar for schedule table */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-100);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--brand-300);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-500);
+}
+
+/* Print Specific Styles */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .no-print,
+  header,
+  footer,
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-card {
+    box-shadow: none !important;
+    border: 1px solid #cccccc !important;
+    page-break-inside: avoid;
+  }
+
+  .print-break-inside-avoid {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure colors and backgrounds show on printed PDF */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
