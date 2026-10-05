@@ -18,15 +18,18 @@ export async function exportSchedulePDF(result: CalculationResult): Promise<void
     day: "numeric",
   });
 
-  // Create clean printable HTML container
+  // Create clean printable HTML container positioned in viewport behind all layers
   const container = document.createElement("div");
-  container.style.position = "absolute";
-  container.style.left = "-9999px";
+  container.id = "tasaheel-pdf-export-container";
+  container.style.position = "fixed";
   container.style.top = "0";
-  container.style.width = "780px";
-  container.style.padding = "24px";
+  container.style.left = "0";
+  container.style.width = "794px"; // Standard A4 width in px
+  container.style.zIndex = "-99999";
   container.style.backgroundColor = "#ffffff";
   container.style.color = "#0f172a";
+  container.style.padding = "20px";
+  container.style.boxSizing = "border-box";
   container.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Cairo', 'Tajawal', sans-serif";
   container.dir = "rtl";
 
@@ -34,35 +37,35 @@ export async function exportSchedulePDF(result: CalculationResult): Promise<void
     .map(
       (item, idx) => `
       <tr style="background-color: ${idx % 2 === 0 ? "#ffffff" : "#f8fafc"}; border-bottom: 1px solid #e2e8f0;">
-        <td style="padding: 8px 10px; text-align: center; font-weight: bold; color: #475569;">${item.installmentNumber}</td>
-        <td style="padding: 8px 10px; font-weight: bold; color: #004d40;">${item.dueLabel}</td>
-        <td style="padding: 8px 10px; text-align: center; font-weight: 800; color: #0f172a; direction: ltr;">${item.formattedDueDate}</td>
-        <td style="padding: 8px 10px; text-align: left; font-weight: bold; color: #004d40; direction: ltr;">${formatCurrency(item.paymentAmount)}</td>
-        <td style="padding: 8px 10px; text-align: left; color: #d97706; direction: ltr;">${formatCurrency(item.interestPart)}</td>
-        <td style="padding: 8px 10px; text-align: left; color: #0f172a; direction: ltr;">${formatCurrency(item.principalPart)}</td>
-        <td style="padding: 8px 10px; text-align: left; color: #64748b; direction: ltr;">${formatCurrency(item.remainingBalance)}</td>
+        <td style="padding: 7px 8px; text-align: center; font-weight: bold; color: #475569;">${item.installmentNumber}</td>
+        <td style="padding: 7px 8px; font-weight: bold; color: #004d40;">${item.dueLabel}</td>
+        <td style="padding: 7px 8px; text-align: center; font-weight: 800; color: #0f172a; direction: ltr;">${item.formattedDueDate}</td>
+        <td style="padding: 7px 8px; text-align: left; font-weight: bold; color: #004d40; direction: ltr;">${formatCurrency(item.paymentAmount)}</td>
+        <td style="padding: 7px 8px; text-align: left; color: #d97706; direction: ltr;">${formatCurrency(item.interestPart)}</td>
+        <td style="padding: 7px 8px; text-align: left; color: #0f172a; direction: ltr;">${formatCurrency(item.principalPart)}</td>
+        <td style="padding: 7px 8px; text-align: left; color: #64748b; direction: ltr;">${formatCurrency(item.remainingBalance)}</td>
       </tr>
     `
     )
     .join("");
 
   container.innerHTML = `
-    <div style="border: 2px solid #004d40; border-radius: 12px; padding: 20px; background-color: #ffffff;">
+    <div style="border: 2px solid #004d40; border-radius: 12px; padding: 18px; background-color: #ffffff;">
       <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #004d40; padding-bottom: 14px; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #004d40; padding-bottom: 12px; margin-bottom: 14px;">
         <div>
-          <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #004d40;">شركة تساهيل للتمويل</h1>
-          <p style="margin: 4px 0 0 0; font-size: 13px; font-weight: 600; color: #475569;">جدول سداد الأقساط وتواريخ الاستحقاق التفصيلية</p>
+          <h1 style="margin: 0; font-size: 20px; font-weight: 900; color: #004d40;">شركة تساهيل للتمويل</h1>
+          <p style="margin: 3px 0 0 0; font-size: 12px; font-weight: 600; color: #475569;">جدول سداد الأقساط وتواريخ الاستحقاق التفصيلية</p>
         </div>
         <div style="text-align: left;">
-          <div style="font-size: 11px; color: #64748b;">تاريخ استخراج التقرير:</div>
-          <div style="font-size: 13px; font-weight: bold; color: #004d40;">${currentDateFormatted}</div>
+          <div style="font-size: 11px; color: #64748b;">تاريخ التقرير:</div>
+          <div style="font-size: 12px; font-weight: bold; color: #004d40;">${currentDateFormatted}</div>
         </div>
       </div>
 
       <!-- Financial Info Box -->
-      <div style="background-color: #f1f5f9; border-radius: 8px; padding: 14px; margin-bottom: 18px; border: 1px solid #cbd5e1;">
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 12px;">
+      <div style="background-color: #f1f5f9; border-radius: 8px; padding: 12px; margin-bottom: 16px; border: 1px solid #cbd5e1;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 11.5px;">
           <div><strong>مبلغ التمويل:</strong> <span style="direction: ltr; font-weight: bold; color: #004d40;">${formatCurrency(result.loanAmount)}</span></div>
           <div><strong>الفائدة السنوية:</strong> <span style="font-weight: bold;">${formatPercent(result.annualRate)}</span></div>
           <div><strong>تاريخ أول قسط:</strong> <span style="font-weight: 800; color: #004d40; direction: ltr;">${result.firstInstallmentDate}</span></div>
@@ -76,16 +79,16 @@ export async function exportSchedulePDF(result: CalculationResult): Promise<void
       </div>
 
       <!-- Schedule Table -->
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 14px;">
         <thead>
           <tr style="background-color: #004d40; color: #ffffff;">
-            <th style="padding: 9px 8px; text-align: center; width: 35px;">#</th>
-            <th style="padding: 9px 8px; text-align: right;">الدفعة / القسط</th>
-            <th style="padding: 9px 8px; text-align: center;">تاريخ الاستحقاق</th>
-            <th style="padding: 9px 8px; text-align: left;">قيمة القسط</th>
-            <th style="padding: 9px 8px; text-align: left;">جزء الفائدة</th>
-            <th style="padding: 9px 8px; text-align: left;">أصل المبلغ</th>
-            <th style="padding: 9px 8px; text-align: left;">الرصيد المتبقي</th>
+            <th style="padding: 8px 6px; text-align: center; width: 30px;">#</th>
+            <th style="padding: 8px 6px; text-align: right;">الدفعة / القسط</th>
+            <th style="padding: 8px 6px; text-align: center;">تاريخ الاستحقاق</th>
+            <th style="padding: 8px 6px; text-align: left;">قيمة القسط</th>
+            <th style="padding: 8px 6px; text-align: left;">جزء الفائدة</th>
+            <th style="padding: 8px 6px; text-align: left;">أصل المبلغ</th>
+            <th style="padding: 8px 6px; text-align: left;">الرصيد المتبقي</th>
           </tr>
         </thead>
         <tbody>
@@ -93,21 +96,21 @@ export async function exportSchedulePDF(result: CalculationResult): Promise<void
         </tbody>
         <tfoot>
           <tr style="background-color: #00251a; color: #ffffff; font-weight: bold;">
-            <td style="padding: 10px 8px; text-align: center;">الإجمالي</td>
-            <td style="padding: 10px 8px;">${result.numberOfInstallments} ${result.installmentType === "monthly" ? "أقساط" : "دفعات"}</td>
-            <td style="padding: 10px 8px; text-align: center;">-</td>
-            <td style="padding: 10px 8px; text-align: left; direction: ltr; color: #fbbf24;">${formatCurrency(result.totalPayable)}</td>
-            <td style="padding: 10px 8px; text-align: left; direction: ltr; color: #fde68a;">${formatCurrency(result.totalInterest)}</td>
-            <td style="padding: 10px 8px; text-align: left; direction: ltr;">${formatCurrency(result.loanAmount)}</td>
-            <td style="padding: 10px 8px; text-align: left; direction: ltr;">0.00 جنيه</td>
+            <td style="padding: 9px 6px; text-align: center;">الإجمالي</td>
+            <td style="padding: 9px 6px;">${result.numberOfInstallments} ${result.installmentType === "monthly" ? "أقساط" : "دفعات"}</td>
+            <td style="padding: 9px 6px; text-align: center;">-</td>
+            <td style="padding: 9px 6px; text-align: left; direction: ltr; color: #fbbf24;">${formatCurrency(result.totalPayable)}</td>
+            <td style="padding: 9px 6px; text-align: left; direction: ltr; color: #fde68a;">${formatCurrency(result.totalInterest)}</td>
+            <td style="padding: 9px 6px; text-align: left; direction: ltr;">${formatCurrency(result.loanAmount)}</td>
+            <td style="padding: 9px 6px; text-align: left; direction: ltr;">0.00 جنيه</td>
           </tr>
         </tfoot>
       </table>
 
       <!-- Notes and Disclaimers -->
-      <div style="border-top: 1px dashed #cbd5e1; padding-top: 12px; font-size: 10px; color: #64748b; line-height: 1.6;">
+      <div style="border-top: 1px dashed #cbd5e1; padding-top: 10px; font-size: 9.5px; color: #64748b; line-height: 1.5;">
         <div>• جدول السداد استرشادي وتعتمد التواريخ والقيم النهائية على العقد المبرم والموافقة الائتمانية.</div>
-        <div>• تم إصدار هذا الجدول عبر حاسبة أقساط تساهيل الرسمية.</div>
+        <div>• تم إصدار هذا الجدول عبر حاسبة أقساط تساهيل للتمويل.</div>
       </div>
     </div>
   `;
@@ -121,10 +124,17 @@ export async function exportSchedulePDF(result: CalculationResult): Promise<void
     const html2pdf = html2pdfModule.default || html2pdfModule;
 
     const opt = {
-      margin: [10, 10, 10, 10] as [number, number, number, number],
+      margin: 8,
       filename: `جدول_أقساط_تساهيل_${result.firstInstallmentDate || "تقرير"}.pdf`,
       image: { type: "jpeg" as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 800,
+      },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
     };
 
@@ -133,9 +143,9 @@ export async function exportSchedulePDF(result: CalculationResult): Promise<void
     console.error("PDF generation failed, falling back to print", error);
     window.print();
   } finally {
-
     if (document.body.contains(container)) {
       document.body.removeChild(container);
     }
   }
 }
+
