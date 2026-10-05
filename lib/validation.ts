@@ -36,7 +36,12 @@ export function validateForm(form: FormState): {
     errors.annualInterestRate = "يرجى التأكد من نسبة الفائدة (الحد الأقصى 100%)";
   }
 
-  // 3. التحقق حسب نوع القسط
+  // 3. التحقق من تاريخ أول قسط
+  if (!form.firstInstallmentDate || form.firstInstallmentDate.trim() === "") {
+    errors.firstInstallmentDate = "يرجى تحديد تاريخ أول قسط";
+  }
+
+  // 4. التحقق حسب نوع القسط
   if (form.installmentType === "monthly") {
     if (
       !form.monthlyDuration ||
@@ -68,3 +73,4 @@ export function validateForm(form: FormState): {
 
   return { isValid, errors };
 }
+

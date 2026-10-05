@@ -1,6 +1,45 @@
 import { CalculationInput, CalculationResult, ScheduleItem } from "./types";
 
 /**
+ * حساب تاريخ الاستحقاق الفعلي لكل قسط بناءً على تاريخ أول قسط وفترة السداد
+ */
+export function computeDueDate(
+  startDateStr: string | undefined,
+  monthsToAdd: number
+): { dueDate: string; formattedDueDate: string } {
+  let date: Date;
+  if (startDateStr && !isNaN(Date.parse(startDateStr))) {
+    const parts = startDateStr.split("-").map(Number);
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      date = new Date(parts[0], parts[1] - 1, parts[2]);
+    } else {
+      date = new Date(startDateStr);
+    }
+  } else {
+    date = new Date();
+  }
+
+  const originalDay = date.getDate();
+  const targetMonthIndex = date.getMonth() + Math.round(monthsToAdd);
+  const targetYear = date.getFullYear() + Math.floor(targetMonthIndex / 12);
+  const normalizedMonth = ((targetMonthIndex % 12) + 12) % 12;
+
+  // التعامل مع نهاية الأشهر (مثال 31 يناير -> 28 فبراير)
+  const maxDays = new Date(targetYear, normalizedMonth + 1, 0).getDate();
+  const adjustedDay = Math.min(originalDay, maxDays);
+
+  const resultDate = new Date(targetYear, normalizedMonth, adjustedDay);
+
+  const yyyy = resultDate.getFullYear();
+  const mm = String(resultDate.getMonth() + 1).padStart(2, "0");
+  const dd = String(resultDate.getDate()).padStart(2, "0");
+  const dueDate = `${yyyy}-${mm}-${dd}`;
+  const formattedDueDate = `${dd}/${mm}/${yyyy}`;
+
+  return { dueDate, formattedDueDate };
+}
+
+/**
  * Pure calculation function for Tasaheel Loan Installment Calculator.
  * 
  * يدعم نظامين لحساب الفائدة:
@@ -14,13 +53,13 @@ import { CalculationInput, CalculationResult, ScheduleItem } from "./types";
  *    القسط الدوري PMT = المبلغ × [ r(1+r)^n ] ÷ [ (1+r)^n - 1 ]
  * 
  * @param input بيانات التمويل المدخلة
- * @returns نتيجة الحساب مع جدول السداد المفصل
+ * @returns نتيجة الحساب مع جدول السداد المفصل وتواريخ الاستحقاق
  */
 export function calculateInstallment(input: CalculationInput): CalculationResult {
   const {
     loanAmount,
     annualInterestRate,
-    clientType,
+    firstInstallmentDate = new Date().toISOString().split("T")[0],
     installmentType,
     interestMethod = "flat",
     monthlyDuration = 12,
@@ -86,6 +125,10 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
       const dueMonth = Math.round(i * intervalMonths);
       const isLast = i === numberOfInstallments;
 
+      // حساب تاريخ الاستحقاق الفعلي للقسط (القسط الأول يبدأ من firstInstallmentDate)
+      const monthsFromFirst = (i - 1) * intervalMonths;
+      const { dueDate, formattedDueDate } = computeDueDate(firstInstallmentDate, monthsFromFirst);
+
       // في القسط الأخير نضمن تصفير الرصيد بدقة لتفادي فروق الكسور العشرية
       const currentPrincipal = isLast ? runningBalance : principalPartPerPayment;
       const remaining = isLast ? 0 : Math.max(0, runningBalance - currentPrincipal);
@@ -94,7 +137,9 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
       schedule.push({
         installmentNumber: i,
         dueMonth,
-        dueLabel: installmentType === "monthly" ? `الشهر ${dueMonth}` : `الدفعة ${i} (الشهر ${dueMonth})`,
+        dueLabel: installmentType === "monthly" ? `القسط ${i}` : `الدفعة ${i}`,
+        dueDate,
+        formattedDueDate,
         paymentAmount: installmentAmount,
         interestPart: interestPartPerPayment,
         principalPart: currentPrincipal,
@@ -127,6 +172,9 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
       const dueMonth = Math.round(i * intervalMonths);
       const isLast = i === n;
 
+      const monthsFromFirst = (i - 1) * intervalMonths;
+      const { dueDate, formattedDueDate } = computeDueDate(firstInstallmentDate, monthsFromFirst);
+
       const interestPart = runningBalance * periodicRate;
       let principalPart = installmentAmount - interestPart;
 
@@ -141,7 +189,9 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
       schedule.push({
         installmentNumber: i,
         dueMonth,
-        dueLabel: installmentType === "monthly" ? `الشهر ${dueMonth}` : `الدفعة ${i} (الشهر ${dueMonth})`,
+        dueLabel: installmentType === "monthly" ? `القسط ${i}` : `الدفعة ${i}`,
+        dueDate,
+        formattedDueDate,
         paymentAmount: installmentAmount,
         interestPart,
         principalPart,
@@ -157,7 +207,7 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
     totalPayable,
     loanAmount,
     annualRate: annualInterestRate,
-    clientType,
+    firstInstallmentDate,
     installmentType,
     interestMethod,
     paymentFrequencyText,
@@ -166,3 +216,4 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
     schedule,
   };
 }
+

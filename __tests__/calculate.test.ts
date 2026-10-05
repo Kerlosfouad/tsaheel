@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateInstallment } from "../lib/calculate";
+import { calculateInstallment, computeDueDate } from "../lib/calculate";
 
 describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
   // Test Case 1: 100,000 EGP, 24% annual, monthly, 12 months, flat.
@@ -7,7 +7,7 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
     const result = calculateInstallment({
       loanAmount: 100000,
       annualInterestRate: 24,
-      clientType: "new",
+      firstInstallmentDate: "2026-11-05",
       installmentType: "monthly",
       interestMethod: "flat",
       monthlyDuration: 12,
@@ -20,6 +20,9 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
     expect(result.installmentAmount).toBeCloseTo(10333.33, 2);
     expect(result.paymentFrequencyText).toBe("شهرياً");
     expect(result.schedule.length).toBe(12);
+    expect(result.schedule[0].dueDate).toBe("2026-11-05");
+    expect(result.schedule[0].formattedDueDate).toBe("05/11/2026");
+    expect(result.schedule[1].dueDate).toBe("2026-12-05");
     expect(result.schedule[11].remainingBalance).toBe(0);
   });
 
@@ -28,7 +31,7 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
     const result = calculateInstallment({
       loanAmount: 200000,
       annualInterestRate: 20,
-      clientType: "renew",
+      firstInstallmentDate: "2026-11-01",
       installmentType: "seasonal",
       interestMethod: "flat",
       repaymentPeriodMonths: 12,
@@ -44,8 +47,10 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
     expect(result.paymentFrequencyText).toBe("كل 4 شهور");
     expect(result.schedule.length).toBe(3);
     expect(result.schedule[0].dueMonth).toBe(4);
-    expect(result.schedule[1].dueMonth).toBe(8);
+    expect(result.schedule[0].dueDate).toBe("2026-11-01");
+    expect(result.schedule[1].dueDate).toBe("2027-03-01");
     expect(result.schedule[2].dueMonth).toBe(12);
+    expect(result.schedule[2].dueDate).toBe("2027-07-01");
     expect(result.schedule[2].remainingBalance).toBe(0);
   });
 
@@ -54,7 +59,7 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
     const result = calculateInstallment({
       loanAmount: 50000,
       annualInterestRate: 18,
-      clientType: "new",
+      firstInstallmentDate: "2026-10-15",
       installmentType: "monthly",
       interestMethod: "reducing",
       monthlyDuration: 36,
@@ -67,6 +72,7 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
     expect(result.totalPayable).toBeCloseTo(65074.31, 1);
     expect(result.totalInterest).toBeCloseTo(15074.31, 1);
     expect(result.schedule.length).toBe(36);
+    expect(result.schedule[0].dueDate).toBe("2026-10-15");
     expect(result.schedule[35].remainingBalance).toBe(0);
   });
 
@@ -75,7 +81,7 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
     const result = calculateInstallment({
       loanAmount: 120000,
       annualInterestRate: 18,
-      clientType: "new",
+      firstInstallmentDate: "2026-10-01",
       installmentType: "seasonal",
       interestMethod: "reducing",
       repaymentPeriodMonths: 12,
@@ -86,6 +92,8 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
     expect(result.intervalMonths).toBe(3);
     expect(result.paymentFrequencyText).toBe("كل 3 شهور");
     expect(result.schedule.length).toBe(4);
+    expect(result.schedule[0].dueDate).toBe("2026-10-01");
+    expect(result.schedule[1].dueDate).toBe("2027-01-01");
     expect(result.schedule[3].remainingBalance).toBe(0);
   });
 
@@ -95,10 +103,10 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
       calculateInstallment({
         loanAmount: 0,
         annualInterestRate: 20,
-        clientType: "new",
         installmentType: "monthly",
         interestMethod: "flat",
       })
     ).toThrow();
   });
 });
+

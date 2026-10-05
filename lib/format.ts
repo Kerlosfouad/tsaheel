@@ -43,10 +43,9 @@ export function formatPercent(rate: number): string {
 }
 
 /**
- * إنشاء ملخص نصي أنيق باللغة العربية للنسخ في الحافظة ومشاركته عبر الواتساب أو الطباعة
+ * إنشاء ملخص نصي أنيق باللغة العربية لمشاركته أو طباعته
  */
 export function generateShareableSummary(result: CalculationResult): string {
-  const clientTypeLabel = result.clientType === "new" ? "عميل جديد" : "تجديد";
   const installmentTypeLabel =
     result.installmentType === "monthly" ? "شهري" : "موسمي";
   const methodLabel =
@@ -58,7 +57,7 @@ export function generateShareableSummary(result: CalculationResult): string {
     "━━━━━━━━━━━━━━━━━━━━━━━━",
     `💰 مبلغ التمويل: ${formatCurrency(result.loanAmount)}`,
     `📊 الفائدة السنوية: ${formatPercent(result.annualRate)}`,
-    `👤 نوع العميل: ${clientTypeLabel}`,
+    `📅 تاريخ أول قسط: ${result.firstInstallmentDate}`,
     `🔄 نظام السداد: ${installmentTypeLabel} (${result.paymentFrequencyText})`,
     `⏳ إجمالي المدة: ${result.totalPeriodMonths} شهر (${result.numberOfInstallments} ${result.installmentType === "monthly" ? "أقساط" : "دفعات"})`,
     `📈 طريقة الحساب: ${methodLabel}`,
@@ -67,9 +66,9 @@ export function generateShareableSummary(result: CalculationResult): string {
     `🏷️ إجمالي الفائدة: ${formatCurrency(result.totalInterest)}`,
     `💵 إجمالي المبلغ المسدد: ${formatCurrency(result.totalPayable)}`,
     "━━━━━━━━━━━━━━━━━━━━━━━━",
-    "📞 الخط الساخن: 16134",
     "⚠️ ملحوظة: هذا الحساب تقديري ولا يمثل عرضاً نهائياً. القيمة النهائية تحدد بعد الاستعلام الائتماني والميداني وموافقة الشركة.",
   ];
 
   return lines.join("\n");
 }
+

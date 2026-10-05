@@ -12,10 +12,14 @@ import { validateForm } from "../lib/validation";
 import { calculateInstallment } from "../lib/calculate";
 import { formatCurrency, formatPercent } from "../lib/format";
 
+const getTodayDateString = () => {
+  return new Date().toISOString().split("T")[0];
+};
+
 const INITIAL_FORM_STATE: FormState = {
   loanAmount: "100,000",
   annualInterestRate: "", // فارغ بدون قيمة افتراضية
-  clientType: "new",
+  firstInstallmentDate: getTodayDateString(),
   installmentType: "monthly",
   interestMethod: "flat",
   monthlyDuration: 12,
@@ -40,7 +44,7 @@ export default function Home() {
       return calculateInstallment({
         loanAmount: parsedAmount,
         annualInterestRate: parsedRate,
-        clientType: form.clientType,
+        firstInstallmentDate: form.firstInstallmentDate,
         installmentType: form.installmentType,
         interestMethod: form.interestMethod,
         monthlyDuration: form.monthlyDuration,
@@ -84,10 +88,10 @@ export default function Home() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-black text-brand-900">
-                تساهيل للتمويل - تقرير حساب القسط
+                تساهيل للتمويل - تقرير حساب القسط وجدول السداد
               </h1>
               <p className="text-xs text-gray-600 mt-1">
-                تاريخ الاستخراج: {new Date().toLocaleDateString("ar-EG")} - الخط الساخن: 16134
+                تاريخ الاستخراج: {new Date().toLocaleDateString("ar-EG")}
               </p>
             </div>
             <div className="text-right text-xs font-bold text-gray-700">
@@ -98,11 +102,12 @@ export default function Home() {
             <div className="grid grid-cols-4 gap-3 mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold">
               <div>مبلغ التمويل: {formatCurrency(result.loanAmount)}</div>
               <div>الفائدة السنوية: {formatPercent(result.annualRate)}</div>
-              <div>نظام السداد: {result.installmentType === "monthly" ? "شهري" : "موسمي"}</div>
+              <div>تاريخ أول قسط: {result.firstInstallmentDate}</div>
               <div>قيمة القسط: {formatCurrency(result.installmentAmount)}</div>
             </div>
           )}
         </div>
+
 
         {/* 2-Column Responsive Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">

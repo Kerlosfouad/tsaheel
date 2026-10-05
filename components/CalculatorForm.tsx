@@ -2,7 +2,6 @@ import React from "react";
 import {
   FormState,
   FormErrors,
-  ClientType,
   InstallmentType,
   InterestMethod,
 } from "../lib/types";
@@ -15,12 +14,10 @@ import {
 import {
   Coins,
   Percent,
-  UserCheck,
   Calendar,
   Layers,
   Clock,
-  Sparkles,
-  ArrowRightLeft,
+  CalendarDays,
 } from "lucide-react";
 
 interface CalculatorFormProps {
@@ -62,6 +59,20 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
     onChange("loanAmount", val.toLocaleString("en-US"));
   };
 
+  const setDateToday = () => {
+    const today = new Date().toISOString().split("T")[0];
+    onChange("firstInstallmentDate", today);
+  };
+
+  const setDateNextMonth = () => {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    const yyyy = nextMonth.getFullYear();
+    const mm = String(nextMonth.getMonth() + 1).padStart(2, "0");
+    const dd = String(nextMonth.getDate()).padStart(2, "0");
+    onChange("firstInstallmentDate", `${yyyy}-${mm}-${dd}`);
+  };
+
   const seasonalInterval =
     form.numberOfPayments > 0
       ? form.repaymentPeriodMonths / form.numberOfPayments
@@ -80,7 +91,7 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
             بيانات التمويل المطلوبة
           </h2>
           <p className="text-xs text-text-muted font-medium mt-0.5">
-            حدد المبلغ ونظام السداد لحساب القسط
+            حدد المبلغ وتاريخ القسط ونظام السداد لحساب القسط وجدول السداد
           </p>
         </div>
       </div>
@@ -242,47 +253,63 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
         </div>
 
         {/* ==================================================== */}
-        {/* 3. Client Type & Installment Type */}
+        {/* 3. First Installment Date & Installment Type */}
         {/* ==================================================== */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
           
-          {/* Client Type */}
+          {/* First Installment Date */}
           <div>
-            <label className="block text-xs sm:text-sm font-bold text-brand-900 mb-1.5">
-              نوع العميل
-            </label>
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <label
+                htmlFor="firstInstallmentDate"
+                className="block text-xs sm:text-sm font-bold text-brand-900 flex items-center gap-1.5"
+              >
+                <CalendarDays className="w-3.5 h-3.5 text-brand" />
+                <span>تاريخ أول قسط</span>
+              </label>
+              <span className="text-[10px] text-text-muted font-medium">
+                تاريخ الاستحقاق
+              </span>
+            </div>
+
             <div
-              className="grid grid-cols-2 p-1 bg-surface-100 rounded-xl border border-surface-200 gap-1"
-              role="radiogroup"
-              aria-label="نوع العميل"
+              className={`flex rounded-xl border transition-all overflow-hidden ${
+                errors.firstInstallmentDate
+                  ? "border-red-400 bg-red-50/30"
+                  : "border-surface-200 bg-surface-50/60 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand-500/20"
+              }`}
             >
+              <input
+                id="firstInstallmentDate"
+                type="date"
+                dir="ltr"
+                value={form.firstInstallmentDate}
+                onChange={(e) => onChange("firstInstallmentDate", e.target.value)}
+                className="w-full h-12 sm:h-13 px-3.5 text-right font-bold text-xs sm:text-sm bg-transparent focus:outline-none text-brand-900"
+              />
+            </div>
+
+            {errors.firstInstallmentDate && (
+              <p className="mt-1 text-xs text-red-600 font-semibold">
+                {errors.firstInstallmentDate}
+              </p>
+            )}
+
+            {/* Quick date chips */}
+            <div className="mt-2 flex items-center gap-1.5">
               <button
                 type="button"
-                role="radio"
-                aria-checked={form.clientType === "new"}
-                onClick={() => onChange("clientType", "new")}
-                className={`py-2 px-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  form.clientType === "new"
-                    ? "bg-brand text-white shadow-xs"
-                    : "text-text-muted hover:text-brand-900"
-                }`}
+                onClick={setDateToday}
+                className="px-2 py-0.5 text-[11px] font-bold rounded bg-surface-100 hover:bg-brand-50 hover:text-brand text-text-muted border border-surface-200 transition-colors"
               >
-                <UserCheck className="w-3.5 h-3.5 shrink-0" />
-                <span>عميل جديد</span>
+                اليوم
               </button>
               <button
                 type="button"
-                role="radio"
-                aria-checked={form.clientType === "renew"}
-                onClick={() => onChange("clientType", "renew")}
-                className={`py-2 px-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  form.clientType === "renew"
-                    ? "bg-brand text-white shadow-xs"
-                    : "text-text-muted hover:text-brand-900"
-                }`}
+                onClick={setDateNextMonth}
+                className="px-2 py-0.5 text-[11px] font-bold rounded bg-surface-100 hover:bg-brand-50 hover:text-brand text-text-muted border border-surface-200 transition-colors"
               >
-                <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                <span>تجديد</span>
+                بعد شهر
               </button>
             </div>
           </div>
@@ -293,7 +320,7 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
               نوع القسط
             </label>
             <div
-              className="grid grid-cols-2 p-1 bg-surface-100 rounded-xl border border-surface-200 gap-1"
+              className="grid grid-cols-2 p-1 bg-surface-100 rounded-xl border border-surface-200 gap-1 h-12 sm:h-13 items-center"
               role="radiogroup"
               aria-label="نوع القسط"
             >
@@ -302,7 +329,7 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                 role="radio"
                 aria-checked={form.installmentType === "monthly"}
                 onClick={() => onChange("installmentType", "monthly")}
-                className={`py-2 px-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`h-10 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
                   form.installmentType === "monthly"
                     ? "bg-brand text-white shadow-xs"
                     : "text-text-muted hover:text-brand-900"
@@ -316,7 +343,7 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                 role="radio"
                 aria-checked={form.installmentType === "seasonal"}
                 onClick={() => onChange("installmentType", "seasonal")}
-                className={`py-2 px-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`h-10 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
                   form.installmentType === "seasonal"
                     ? "bg-brand text-white shadow-xs"
                     : "text-text-muted hover:text-brand-900"
@@ -429,7 +456,7 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                   className="w-full h-11 px-3 rounded-xl border border-surface-200 bg-white font-bold text-xs sm:text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-accent-400"
                 >
                   {Array.from({ length: 36 }, (_, i) => i + 1).map((m) => (
-                    <option key={m} value={m}>
+                    <option key={`period-${m}`} value={m}>
                       {m} شهر ({(m / 12).toFixed(1)} سنة)
                     </option>
                   ))}
@@ -447,7 +474,7 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                   htmlFor="numberOfPayments"
                   className="block text-xs font-bold text-brand-900 mb-1"
                 >
-                  عدد الدفعات
+                  عدد الدفعات (الأقساط)
                 </label>
                 <select
                   id="numberOfPayments"
@@ -460,11 +487,21 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                   {Array.from(
                     { length: form.repaymentPeriodMonths },
                     (_, i) => i + 1
-                  ).map((p) => (
-                    <option key={p} value={p}>
-                      {p} {p === 1 ? "دفعة واحدة" : `${p} دفعات`}
-                    </option>
-                  ))}
+                  ).map((p) => {
+                    const interval = form.repaymentPeriodMonths / p;
+                    const intervalLabel =
+                      interval === 1
+                        ? "شهرياً"
+                        : Number.isInteger(interval)
+                        ? `كل ${interval} شهور`
+                        : `كل ${interval.toFixed(1)} شهر`;
+
+                    return (
+                      <option key={`payment-opt-${p}`} value={p}>
+                        {p} {p === 1 ? "دفعة واحدة" : `${p} دفعات`} ({intervalLabel})
+                      </option>
+                    );
+                  })}
                 </select>
                 {errors.numberOfPayments && (
                   <p className="mt-1 text-xs text-red-600 font-semibold">
@@ -527,3 +564,4 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
     </div>
   );
 };
+

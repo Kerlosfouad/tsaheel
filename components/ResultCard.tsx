@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { CalculationResult } from "../lib/types";
-import { formatCurrency, formatPercent, generateShareableSummary } from "../lib/format";
+import { formatCurrency, formatPercent } from "../lib/format";
+import { exportSchedulePDF } from "../lib/pdfExport";
 import {
   RotateCcw,
-  Copy,
-  Check,
-  Printer,
+  FileDown,
   Calendar,
   Sparkles,
   TrendingUp,
@@ -13,6 +12,7 @@ import {
   Coins,
   ShieldCheck,
   Info,
+  CalendarDays,
 } from "lucide-react";
 
 interface ResultCardProps {
@@ -26,23 +26,17 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   isValid,
   onReset,
 }) => {
-  const [copied, setCopied] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const handleCopy = async () => {
+  const handleDownloadPDF = async () => {
     if (!result) return;
     try {
-      const summaryText = generateShareableSummary(result);
-      await navigator.clipboard.writeText(summaryText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      setIsExporting(true);
+      await exportSchedulePDF(result);
     } catch (err) {
-      console.error("Failed to copy", err);
-    }
-  };
-
-  const handlePrint = () => {
-    if (typeof window !== "undefined") {
-      window.print();
+      console.error("Failed to generate PDF", err);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -70,7 +64,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     );
   }
 
-  const clientTypeLabel = result.clientType === "new" ? "عميل جديد" : "تجديد";
   const installmentTypeLabel =
     result.installmentType === "monthly" ? "شهري" : "موسمي";
   const methodLabel =
@@ -84,8 +77,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         {/* Badges row */}
         <div className="flex flex-wrap items-center justify-between gap-1.5 mb-3 relative z-10">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold text-white border border-white/20">
-              {clientTypeLabel}
+            <span className="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold text-white border border-white/20 flex items-center gap-1">
+              <CalendarDays className="w-3 h-3" />
+              <span>أول قسط: {result.firstInstallmentDate}</span>
             </span>
             <span className="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold text-white border border-white/20">
               نظام {installmentTypeLabel}
@@ -181,48 +175,25 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="pt-2 border-t border-surface-200 grid grid-cols-1 sm:grid-cols-3 gap-2 no-print">
+        <div className="pt-2 border-t border-surface-200 grid grid-cols-1 sm:grid-cols-2 gap-2.5 no-print">
           
-          {/* Copy Result Button */}
+          {/* Download PDF Button */}
           <button
             type="button"
-            onClick={handleCopy}
-            className={`h-11 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 border transition-all ${
-              copied
-                ? "bg-green-600 text-white border-green-600 shadow-xs"
-                : "bg-surface-100 hover:bg-brand-50 hover:text-brand text-brand-900 border-surface-200"
-            }`}
-            aria-label="نسخ نتيجة الحساب"
+            onClick={handleDownloadPDF}
+            disabled={isExporting}
+            className="h-11 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all disabled:opacity-50"
+            aria-label="تنزيل جدول السداد بصيغة PDF"
           >
-            {copied ? (
-              <>
-                <Check className="w-4 h-4 shrink-0" />
-                <span>تم النسخ!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4 shrink-0" />
-                <span>نسخ النتيجة</span>
-              </>
-            )}
-          </button>
-
-          {/* Print / Save PDF Button */}
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="h-11 px-3 rounded-xl bg-surface-100 hover:bg-brand-50 hover:text-brand text-brand-900 border border-surface-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all"
-            aria-label="طباعة أو حفظ التقرير بصيغة PDF"
-          >
-            <Printer className="w-4 h-4 shrink-0" />
-            <span>طباعة / PDF</span>
+            <FileDown className="w-4 h-4 shrink-0" />
+            <span>{isExporting ? "جاري تجهيز الـ PDF..." : "تحميل جدول السداد (PDF)"}</span>
           </button>
 
           {/* Reset Button */}
           <button
             type="button"
             onClick={onReset}
-            className="h-11 px-3 rounded-xl bg-surface-100 hover:bg-red-50 hover:text-red-700 text-text-muted border border-surface-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all"
+            className="h-11 px-4 rounded-xl bg-surface-100 hover:bg-red-50 hover:text-red-700 text-text-muted border border-surface-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all"
             aria-label="إعادة ضبط الحاسبة"
           >
             <RotateCcw className="w-4 h-4 shrink-0" />
@@ -234,3 +205,4 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     </div>
   );
 };
+
