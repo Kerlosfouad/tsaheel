@@ -87,9 +87,10 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
     totalPeriodMonths = Math.max(1, Math.min(36, Math.round(repaymentPeriodMonths)));
     numberOfInstallments = Math.max(
       1,
-      Math.min(totalPeriodMonths, Math.round(numberOfPayments))
+      Math.min(12, Math.min(totalPeriodMonths, Math.round(numberOfPayments)))
     );
     intervalMonths = totalPeriodMonths / numberOfInstallments;
+
     
     if (intervalMonths === 1) {
       paymentFrequencyText = "شهرياً";

@@ -60,12 +60,13 @@ export function validateForm(form: FormState): {
       errors.repaymentPeriodMonths = `فترة السداد الإجمالية يجب أن تكون بين شهر و ${MAX_DURATION_MONTHS} شهراً`;
     }
 
+    const maxAllowedPayments = Math.min(12, form.repaymentPeriodMonths);
     if (
       !form.numberOfPayments ||
       form.numberOfPayments < 1 ||
-      form.numberOfPayments > form.repaymentPeriodMonths
+      form.numberOfPayments > maxAllowedPayments
     ) {
-      errors.numberOfPayments = `عدد الدفعات يجب أن يكون بين 1 و ${form.repaymentPeriodMonths} دفعة`;
+      errors.numberOfPayments = `عدد الدفعات يجب أن يكون بين 1 و ${maxAllowedPayments} دفعة (الحد الأقصى 12)`;
     }
   }
 
@@ -73,4 +74,5 @@ export function validateForm(form: FormState): {
 
   return { isValid, errors };
 }
+
 

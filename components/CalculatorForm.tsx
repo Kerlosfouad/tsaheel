@@ -449,8 +449,9 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                   onChange={(e) => {
                     const period = parseInt(e.target.value, 10);
                     onChange("repaymentPeriodMonths", period);
-                    if (form.numberOfPayments > period) {
-                      onChange("numberOfPayments", period);
+                    const maxAllowed = Math.min(12, period);
+                    if (form.numberOfPayments > maxAllowed) {
+                      onChange("numberOfPayments", maxAllowed);
                     }
                   }}
                   className="w-full h-11 px-3 rounded-xl border border-surface-200 bg-white font-bold text-xs sm:text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-accent-400"
@@ -468,13 +469,13 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                 )}
               </div>
 
-              {/* Number of Payments */}
+              {/* Number of Payments (Max 12) */}
               <div>
                 <label
                   htmlFor="numberOfPayments"
                   className="block text-xs font-bold text-brand-900 mb-1"
                 >
-                  عدد الدفعات (الأقساط)
+                  عدد الدفعات (بحد أقصى 12 دفعة)
                 </label>
                 <select
                   id="numberOfPayments"
@@ -485,7 +486,7 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                   className="w-full h-11 px-3 rounded-xl border border-surface-200 bg-white font-bold text-xs sm:text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-accent-400"
                 >
                   {Array.from(
-                    { length: form.repaymentPeriodMonths },
+                    { length: Math.min(12, form.repaymentPeriodMonths) },
                     (_, i) => i + 1
                   ).map((p) => {
                     const interval = form.repaymentPeriodMonths / p;
@@ -496,9 +497,14 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                         ? `كل ${interval} شهور`
                         : `كل ${interval.toFixed(1)} شهر`;
 
+                    const labelText =
+                      p === 1
+                        ? `دفعة واحدة (${intervalLabel})`
+                        : `${p} دفعات (${intervalLabel})`;
+
                     return (
                       <option key={`payment-opt-${p}`} value={p}>
-                        {p} {p === 1 ? "دفعة واحدة" : `${p} دفعات`} ({intervalLabel})
+                        {labelText}
                       </option>
                     );
                   })}
