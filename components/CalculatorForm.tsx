@@ -387,7 +387,7 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
               onChange={(e) =>
                 onChange("monthlyDuration", parseInt(e.target.value, 10))
               }
-              className="w-full h-2 bg-brand-200/70 rounded-lg appearance-none cursor-pointer"
+              className="w-full h-2 bg-surface-200 rounded-lg appearance-none cursor-pointer"
               aria-label="مدة التقسيط بالشهور"
             />
 
