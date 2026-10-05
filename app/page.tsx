@@ -21,7 +21,7 @@ const INITIAL_FORM_STATE: FormState = {
   annualInterestRate: "", // فارغ بدون قيمة افتراضية
   firstInstallmentDate: getTodayDateString(),
   installmentType: "monthly",
-  interestMethod: "flat",
+  interestMethod: "reducing",
   monthlyDuration: 12,
   repaymentPeriodMonths: 12,
   numberOfPayments: 3,

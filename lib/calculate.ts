@@ -61,7 +61,7 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
     annualInterestRate,
     firstInstallmentDate = new Date().toISOString().split("T")[0],
     installmentType,
-    interestMethod = "flat",
+    interestMethod = "reducing",
     monthlyDuration = 12,
     repaymentPeriodMonths = 12,
     numberOfPayments = 3,

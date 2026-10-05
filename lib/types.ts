@@ -10,7 +10,7 @@ export interface CalculationInput {
   annualInterestRate: number; // الفائدة السنوية %
   firstInstallmentDate?: string; // تاريخ أول قسط (YYYY-MM-DD)
   installmentType: InstallmentType; // نوع القسط
-  interestMethod: InterestMethod; // طريقة حساب الفائدة (افتراضي: flat)
+  interestMethod?: InterestMethod; // طريقة حساب الفائدة (افتراضي: reducing - رصيد متناقص)
   
   // خاص بالشهري
   monthlyDuration?: number; // مدة التقسيط بالشهور (1-36)
