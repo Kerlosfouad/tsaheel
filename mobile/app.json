@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "حاسبة أقساط تساهيل",
+    "slug": "tsaheel-calculator",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#004d40",
+      "resizeMode": "contain"
+    },
+    "android": {
+      "package": "com.tasaheel.calculator",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#004d40",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    }
+  }
+}
