@@ -1,11 +1,12 @@
 import { CalculationResult } from "./types";
 import { formatCurrency, formatPercent } from "./format";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 
 /**
  * طباعة وتنزيل جدول الأقساط كملف PDF عالي الجودة يدعم اللغة العربية وتواريخ الاستحقاق
  */
 export async function exportSchedulePDF(result: CalculationResult): Promise<void> {
-  if (typeof window === "undefined") return;
 
   const installmentTypeLabel =
     result.installmentType === "monthly" ? "شهري" : "موسمي";
@@ -185,43 +186,21 @@ export async function exportSchedulePDF(result: CalculationResult): Promise<void
     </html>
   `;
 
-  // Use hidden iframe to trigger direct PDF print dialog without blank canvas issues
-  let iframe = document.getElementById("tasaheel-print-iframe") as HTMLIFrameElement;
-  if (!iframe) {
-    iframe = document.createElement("iframe");
-    iframe.id = "tasaheel-print-iframe";
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
-  }
-
-  const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
-  if (iframeDoc && iframe.contentWindow) {
-    iframeDoc.open();
-    iframeDoc.write(htmlContent);
-    iframeDoc.close();
-
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    }, 300);
-  } else {
-    // Popup window fallback
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-      }, 300);
-    } else {
-      window.print();
+  try {
+    const { uri } = await Print.printToFileAsync({
+      html: htmlContent,
+      base64: false,
+    });
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, {
+        UTI: ".pdf",
+        mimeType: "application/pdf",
+        dialogTitle: "جدول أقساط تساهيل",
+      });
     }
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    throw error;
   }
 }
 

@@ -10,13 +10,30 @@ import {
   StatusBar,
   Share,
   Platform,
-  I18nManager,
+  Linking,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  FontAwesome5,
+} from "@expo/vector-icons";
 import { FormState, CalculationResult } from "./lib/types";
-import { validateForm } from "./lib/validation";
+import {
+  validateForm,
+  MIN_LOAN_AMOUNT,
+  MAX_LOAN_AMOUNT,
+  MIN_DURATION_MONTHS,
+  MAX_DURATION_MONTHS,
+} from "./lib/validation";
 import { calculateInstallment } from "./lib/calculate";
-import { formatCurrency, formatPercent, generateShareableSummary } from "./lib/format";
+import {
+  formatCurrency,
+  formatPercent,
+  generateShareableSummary,
+} from "./lib/format";
+import { exportSchedulePDF } from "./lib/pdfExport";
 
 const getTodayDateString = () => {
   return new Date().toISOString().split("T")[0];
@@ -43,11 +60,29 @@ const POPULAR_AMOUNTS = [
   { label: "1 مليون", value: 1000000 },
 ];
 
+const YEAR_TARGETS = [
+  { label: "1 سنة", months: 12 },
+  { label: "1.5 سنة", months: 18 },
+  { label: "2 سنة", months: 24 },
+  { label: "2.5 سنة", months: 30 },
+  { label: "3 سنوات", months: 36 },
+];
+
 const MONTHLY_PRESETS = [6, 12, 18, 24, 30, 36];
+
+/**
+ * Tasaheel Official Stacked Layers Vector Logo
+ */
+const TasaheelLogo: React.FC<{ size?: number }> = ({ size = 22 }) => (
+  <View style={styles.logoBox}>
+    <MaterialCommunityIcons name="layers-triple" size={size} color="#ffffff" />
+  </View>
+);
 
 export default function App() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM_STATE);
   const [isScheduleExpanded, setIsScheduleExpanded] = useState<boolean>(true);
+  const [isExportingPDF, setIsExportingPDF] = useState<boolean>(false);
 
   // Form Validation
   const { isValid, errors } = useMemo(() => validateForm(form), [form]);
@@ -93,8 +128,38 @@ export default function App() {
     setForm((prev) => ({ ...prev, loanAmount: num.toLocaleString("en-US") }));
   };
 
+  const adjustAmount = (delta: number) => {
+    const current = parseFloat(form.loanAmount.replace(/,/g, "")) || 0;
+    const next = Math.max(MIN_LOAN_AMOUNT, Math.min(MAX_LOAN_AMOUNT, current + delta));
+    setForm((prev) => ({ ...prev, loanAmount: next.toLocaleString("en-US") }));
+  };
+
   const handleAmountPreset = (val: number) => {
     setForm((prev) => ({ ...prev, loanAmount: val.toLocaleString("en-US") }));
+  };
+
+  const adjustRate = (delta: number) => {
+    const current = parseFloat(form.annualInterestRate) || 20;
+    const next = Math.max(0.1, Math.min(100, parseFloat((current + delta).toFixed(1))));
+    setForm((prev) => ({ ...prev, annualInterestRate: next.toString() }));
+  };
+
+  const adjustDuration = (deltaMonths: number) => {
+    const current = form.monthlyDuration || 12;
+    const next = Math.max(MIN_DURATION_MONTHS, Math.min(MAX_DURATION_MONTHS, current + deltaMonths));
+    setForm((prev) => ({ ...prev, monthlyDuration: next }));
+  };
+
+  const adjustPaymentsCount = (delta: number) => {
+    const current = parseInt(String(form.numberOfPayments || "3"), 10) || 3;
+    const next = Math.max(1, Math.min(36, current + delta));
+    setForm((prev) => ({ ...prev, numberOfPayments: next.toString() }));
+  };
+
+  const adjustIntervalMonths = (delta: number) => {
+    const current = parseInt(String(form.paymentIntervalMonths || "4"), 10) || 4;
+    const next = Math.max(1, Math.min(24, current + delta));
+    setForm((prev) => ({ ...prev, paymentIntervalMonths: next.toString() }));
   };
 
   const setDateToday = () => {
@@ -113,6 +178,12 @@ export default function App() {
     }));
   };
 
+  const handleCallHotline = () => {
+    Linking.openURL("tel:16134").catch(() => {
+      Alert.alert("الخط الساخن", "رقم الخط الساخن لشركة تساهيل: 16134");
+    });
+  };
+
   const handleShare = async () => {
     if (!result) return;
     try {
@@ -123,6 +194,19 @@ export default function App() {
       });
     } catch (error) {
       console.error("Error sharing:", error);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!result) return;
+    try {
+      setIsExportingPDF(true);
+      await exportSchedulePDF(result);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      Alert.alert("تنبيه", "حدث خطأ أثناء إصدار ملف الـ PDF، يرجى المحاولة مرة أخرى.");
+    } finally {
+      setIsExportingPDF(false);
     }
   };
 
@@ -139,16 +223,36 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#004d40" />
 
-      {/* Top Header */}
+      {/* ==================================================== */}
+      {/* 1. Official Header (نفس هيدر الموقع) */}
+      {/* ==================================================== */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <View style={styles.headerIconWrapper}>
-            <FontAwesome5 name="calculator" size={20} color="#ffffff" />
+          {/* Logo & Brand Info */}
+          <View style={styles.headerBrandRow}>
+            <TasaheelLogo size={24} />
+            <View style={styles.headerTitles}>
+              <Text style={styles.headerTitle}>تساهيل</Text>
+              <Text style={styles.headerSubtitle}>
+                البرنامج التقديري لحساب أقساط تمويل المشروعات
+              </Text>
+            </View>
           </View>
-          <View style={styles.headerTitles}>
-            <Text style={styles.headerTitle}>تساهيل للتمويل</Text>
-            <Text style={styles.headerSubtitle}>حاسبة الأقساط وجدول السداد التقديري</Text>
-          </View>
+
+          {/* Hotline Button */}
+          <TouchableOpacity
+            style={styles.hotlineButton}
+            onPress={handleCallHotline}
+            activeOpacity={0.8}
+          >
+            <View style={styles.hotlineIcon}>
+              <Ionicons name="call" size={14} color="#004d40" />
+            </View>
+            <View style={styles.hotlineTextCol}>
+              <Text style={styles.hotlineLabel}>الخط الساخن</Text>
+              <Text style={styles.hotlineNumber}>16134</Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -158,28 +262,64 @@ export default function App() {
         showsVerticalScrollIndicator={false}
       >
         {/* ==================================================== */}
-        {/* Form Card */}
+        {/* 2. Hero Section (نفس الهيرو في الموقع) */}
+        {/* ==================================================== */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroBadge}>
+            <Ionicons name="sparkles" size={13} color="#d97706" />
+            <Text style={styles.heroBadgeText}>حاسبة أقساط التمويل الميسر</Text>
+          </View>
+
+          <Text style={styles.heroTitle}>
+            احسب قسطك مع <Text style={styles.heroHighlight}>تساهيل</Text>
+          </Text>
+
+          <Text style={styles.heroSubtitle}>
+            تمويل يبدأ من <Text style={styles.heroBold}>5,000 جنيه</Text> حتى{" "}
+            <Text style={styles.heroBold}>15 مليون جنيه</Text> بأنظمة سداد ميسرة.
+          </Text>
+
+          {/* Feature Pills */}
+          <View style={styles.heroPillsRow}>
+            <View style={styles.heroPill}>
+              <Ionicons name="checkmark-circle" size={13} color="#00796b" />
+              <Text style={styles.heroPillText}>أقساط شهرية وموسمية</Text>
+            </View>
+            <View style={styles.heroPill}>
+              <Ionicons name="time" size={13} color="#d97706" />
+              <Text style={styles.heroPillText}>سداد حتى 36 شهراً</Text>
+            </View>
+            <View style={styles.heroPill}>
+              <Ionicons name="trending-up" size={13} color="#00796b" />
+              <Text style={styles.heroPillText}>فائدة ثابتة أو متناقصة</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ==================================================== */}
+        {/* 3. Calculator Form Card */}
         {/* ==================================================== */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.cardHeaderIcon}>
               <Ionicons name="cash-outline" size={20} color="#004d40" />
             </View>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.cardHeaderTitle}>بيانات التمويل المطلوبة</Text>
               <Text style={styles.cardHeaderSubtitle}>
-                حدد تفاصيل التمويل لحساب قيمة القسط وجدول السداد
+                حدد المبلغ وتاريخ القسط ونظام السداد لحساب القسط وجدول السداد
               </Text>
             </View>
           </View>
 
-          {/* 1. Loan Amount */}
+          {/* ---------------- 1. Loan Amount ---------------- */}
           <View style={styles.fieldSection}>
             <View style={styles.labelRow}>
               <Text style={styles.fieldLabel}>مبلغ التمويل المطلوب</Text>
               <Text style={styles.hintText}>5,000 إلى 15,000,000 ج.م</Text>
             </View>
 
+            {/* Input & Suffix */}
             <View style={[styles.inputGroup, errors.loanAmount && styles.inputError]}>
               <TextInput
                 style={styles.inputField}
@@ -197,6 +337,34 @@ export default function App() {
             {errors.loanAmount && (
               <Text style={styles.errorText}>⚠️ {errors.loanAmount}</Text>
             )}
+
+            {/* Steppers (+ / - adjustments) */}
+            <View style={styles.steppersRow}>
+              <TouchableOpacity
+                onPress={() => adjustAmount(50000)}
+                style={styles.stepperBtn}
+              >
+                <Text style={styles.stepperBtnText}>+ 50 ألف</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => adjustAmount(10000)}
+                style={styles.stepperBtn}
+              >
+                <Text style={styles.stepperBtnText}>+ 10 آلاف</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => adjustAmount(-10000)}
+                style={styles.stepperBtn}
+              >
+                <Text style={styles.stepperBtnText}>- 10 آلاف</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => adjustAmount(-50000)}
+                style={styles.stepperBtn}
+              >
+                <Text style={styles.stepperBtnText}>- 50 ألف</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Amount Presets */}
             <View style={styles.presetContainer}>
@@ -225,11 +393,11 @@ export default function App() {
             </View>
           </View>
 
-          {/* 2. Annual Interest Rate % */}
+          {/* ---------------- 2. Annual Interest Rate % ---------------- */}
           <View style={styles.fieldSection}>
             <View style={styles.labelRow}>
               <View style={styles.rowAlign}>
-                <MaterialCommunityIcons name="percent" size={14} color="#d97706" />
+                <MaterialCommunityIcons name="percent" size={15} color="#d97706" />
                 <Text style={[styles.fieldLabel, { marginRight: 4 }]}>
                   الفائدة السنوية %
                 </Text>
@@ -262,52 +430,75 @@ export default function App() {
 
             {errors.annualInterestRate ? (
               <Text style={styles.warningText}>💡 {errors.annualInterestRate}</Text>
-            ) : (
-              <View style={styles.presetContainer}>
-                <Text style={styles.presetTitle}>نسب مقترحة:</Text>
-                <View style={styles.chipsRow}>
-                  {[18, 20, 22, 24].map((r) => {
-                    const isSelected = form.annualInterestRate === r.toString();
-                    return (
-                      <TouchableOpacity
-                        key={r}
-                        onPress={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            annualInterestRate: r.toString(),
-                          }))
-                        }
+            ) : null}
+
+            {/* Steppers & Suggested Rates */}
+            <View style={styles.steppersRow}>
+              <TouchableOpacity
+                onPress={() => adjustRate(1)}
+                style={styles.stepperBtn}
+              >
+                <Text style={styles.stepperBtnText}>+ 1%</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => adjustRate(0.5)}
+                style={styles.stepperBtn}
+              >
+                <Text style={styles.stepperBtnText}>+ 0.5%</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => adjustRate(-0.5)}
+                style={styles.stepperBtn}
+              >
+                <Text style={styles.stepperBtnText}>- 0.5%</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => adjustRate(-1)}
+                style={styles.stepperBtn}
+              >
+                <Text style={styles.stepperBtnText}>- 1%</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.presetContainer}>
+              <Text style={styles.presetTitle}>نسب مقترحة:</Text>
+              <View style={styles.chipsRow}>
+                {[18, 20, 22, 24].map((r) => {
+                  const isSelected = form.annualInterestRate === r.toString();
+                  return (
+                    <TouchableOpacity
+                      key={r}
+                      onPress={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          annualInterestRate: r.toString(),
+                        }))
+                      }
+                      style={[
+                        styles.chip,
+                        isSelected && styles.chipAccentSelected,
+                      ]}
+                    >
+                      <Text
                         style={[
-                          styles.chip,
-                          isSelected && styles.chipAccentSelected,
+                          styles.chipText,
+                          isSelected && styles.chipTextSelected,
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.chipText,
-                            isSelected && styles.chipTextSelected,
-                          ]}
-                        >
-                          {r}%
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                        {r}%
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            )}
+            </View>
           </View>
 
-          {/* 3. First Installment Date */}
+          {/* ---------------- 3. First Date & Installment Type ---------------- */}
           <View style={styles.fieldSection}>
             <View style={styles.labelRow}>
-              <View style={styles.rowAlign}>
-                <Ionicons name="calendar-outline" size={14} color="#004d40" />
-                <Text style={[styles.fieldLabel, { marginRight: 4 }]}>
-                  تاريخ أول قسط
-                </Text>
-              </View>
-              <Text style={styles.hintText}>تاريخ الاستحقاق</Text>
+              <Text style={styles.fieldLabel}>تاريخ استحقاق أول قسط</Text>
+              <Text style={styles.hintText}>يوم-شهر-سنة</Text>
             </View>
 
             <View style={styles.inputGroup}>
@@ -317,25 +508,31 @@ export default function App() {
                 onChangeText={(text) =>
                   setForm((prev) => ({ ...prev, firstInstallmentDate: text }))
                 }
-                placeholder="YYYY-MM-DD"
+                placeholder="2026-05-01"
                 placeholderTextColor="#94a3b8"
               />
               <View style={styles.inputSuffix}>
-                <Ionicons name="calendar" size={16} color="#004d40" />
+                <Ionicons name="calendar-outline" size={16} color="#004d40" />
               </View>
             </View>
 
-            <View style={styles.chipsRow}>
-              <TouchableOpacity onPress={setDateToday} style={styles.chip}>
-                <Text style={styles.chipText}>اليوم</Text>
+            <View style={styles.dateButtonsRow}>
+              <TouchableOpacity
+                onPress={setDateToday}
+                style={styles.dateQuickBtn}
+              >
+                <Text style={styles.dateQuickBtnText}>اليوم</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={setDateNextMonth} style={styles.chip}>
-                <Text style={styles.chipText}>بعد شهر</Text>
+              <TouchableOpacity
+                onPress={setDateNextMonth}
+                style={styles.dateQuickBtn}
+              >
+                <Text style={styles.dateQuickBtnText}>بعد شهر</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* 4. Installment Type (Monthly vs Seasonal) */}
+          {/* ---------------- 4. Installment Type Toggle ---------------- */}
           <View style={styles.fieldSection}>
             <Text style={styles.fieldLabel}>نوع القسط</Text>
             <View style={styles.toggleRow}>
@@ -349,9 +546,9 @@ export default function App() {
                 ]}
               >
                 <Ionicons
-                  name="calendar-outline"
+                  name="calendar"
                   size={16}
-                  color={form.installmentType === "monthly" ? "#ffffff" : "#475569"}
+                  color={form.installmentType === "monthly" ? "#ffffff" : "#64748b"}
                 />
                 <Text
                   style={[
@@ -373,9 +570,9 @@ export default function App() {
                 ]}
               >
                 <MaterialCommunityIcons
-                  name="layers-outline"
+                  name="layers"
                   size={16}
-                  color={form.installmentType === "seasonal" ? "#ffffff" : "#475569"}
+                  color={form.installmentType === "seasonal" ? "#ffffff" : "#64748b"}
                 />
                 <Text
                   style={[
@@ -389,13 +586,17 @@ export default function App() {
             </View>
           </View>
 
-          {/* 5. Duration Settings */}
+          {/* ---------------- 5. Duration & Targets ---------------- */}
           {form.installmentType === "monthly" ? (
-            /* Monthly Duration */
             <View style={styles.monthlyBox}>
               <View style={styles.labelRow}>
-                <Text style={styles.boxTitle}>مدة التقسيط</Text>
-                <Text style={styles.durationValue}>
+                <View style={styles.rowAlign}>
+                  <Ionicons name="time-outline" size={16} color="#004d40" />
+                  <Text style={[styles.fieldLabel, { marginRight: 4 }]}>
+                    مدة التقسيط بالشهور
+                  </Text>
+                </View>
+                <Text style={styles.durationBadge}>
                   {form.monthlyDuration} شهر{" "}
                   <Text style={styles.durationYear}>
                     ({(form.monthlyDuration / 12).toFixed(1)} سنة)
@@ -403,32 +604,106 @@ export default function App() {
                 </Text>
               </View>
 
-              <View style={styles.chipsRow}>
-                {MONTHLY_PRESETS.map((m) => {
-                  const isSelected = form.monthlyDuration === m;
-                  return (
-                    <TouchableOpacity
-                      key={m}
-                      onPress={() =>
-                        setForm((prev) => ({ ...prev, monthlyDuration: m }))
-                      }
-                      style={[styles.chip, isSelected && styles.chipSelected]}
-                    >
-                      <Text
+              {/* Stepper + / - for Duration */}
+              <View style={styles.durationStepperRow}>
+                <TouchableOpacity
+                  onPress={() => adjustDuration(-6)}
+                  style={styles.stepperIconBtn}
+                  disabled={form.monthlyDuration <= MIN_DURATION_MONTHS}
+                >
+                  <Ionicons name="remove" size={18} color="#004d40" />
+                </TouchableOpacity>
+
+                <View style={styles.durationDisplay}>
+                  <Text style={styles.durationDisplayText}>
+                    {form.monthlyDuration} شهر
+                  </Text>
+                  <Text style={styles.durationDisplaySub}>
+                    {(form.monthlyDuration / 12).toFixed(1)} سنة
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => adjustDuration(6)}
+                  style={styles.stepperIconBtn}
+                  disabled={form.monthlyDuration >= MAX_DURATION_MONTHS}
+                >
+                  <Ionicons name="add" size={18} color="#004d40" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Year Target Buttons (أزرار الترجيت بالسنين) */}
+              <View style={styles.targetSection}>
+                <Text style={styles.targetSectionTitle}>🎯 مدد السنوات المباشرة:</Text>
+                <View style={styles.chipsRow}>
+                  {YEAR_TARGETS.map((target) => {
+                    const isSelected = form.monthlyDuration === target.months;
+                    return (
+                      <TouchableOpacity
+                        key={target.months}
+                        onPress={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            monthlyDuration: target.months,
+                          }))
+                        }
                         style={[
-                          styles.chipText,
-                          isSelected && styles.chipTextSelected,
+                          styles.targetChip,
+                          isSelected && styles.targetChipSelected,
                         ]}
                       >
-                        {m} شهر
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                        <Text
+                          style={[
+                            styles.targetChipText,
+                            isSelected && styles.targetChipTextSelected,
+                          ]}
+                        >
+                          {target.label}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.targetChipSub,
+                            isSelected && styles.targetChipSubSelected,
+                          ]}
+                        >
+                          {target.months} شهر
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Quick Monthly Presets */}
+              <View style={styles.presetContainer}>
+                <Text style={styles.presetTitle}>المدد الشائعة:</Text>
+                <View style={styles.chipsRow}>
+                  {MONTHLY_PRESETS.map((m) => {
+                    const isSelected = form.monthlyDuration === m;
+                    return (
+                      <TouchableOpacity
+                        key={m}
+                        onPress={() =>
+                          setForm((prev) => ({ ...prev, monthlyDuration: m }))
+                        }
+                        style={[styles.chip, isSelected && styles.chipSelected]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            isSelected && styles.chipTextSelected,
+                          ]}
+                        >
+                          {m} شهر
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             </View>
           ) : (
-            /* Seasonal Settings (2 Inputs) */
+            /* Seasonal Settings (2 Inputs with Steppers) */
             <View style={styles.seasonalBox}>
               <View style={styles.seasonalHeader}>
                 <View style={styles.rowAlign}>
@@ -450,7 +725,24 @@ export default function App() {
 
               {/* Input 1: عدد الدفعات */}
               <View style={styles.innerField}>
-                <Text style={styles.subFieldLabel}>عدد الدفعات</Text>
+                <View style={styles.labelRow}>
+                  <Text style={styles.subFieldLabel}>عدد الدفعات</Text>
+                  <View style={styles.steppersInline}>
+                    <TouchableOpacity
+                      onPress={() => adjustPaymentsCount(-1)}
+                      style={styles.miniStepperBtn}
+                    >
+                      <Ionicons name="remove" size={14} color="#b45309" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => adjustPaymentsCount(1)}
+                      style={styles.miniStepperBtn}
+                    >
+                      <Ionicons name="add" size={14} color="#b45309" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 <View
                   style={[
                     styles.inputGroup,
@@ -472,12 +764,13 @@ export default function App() {
                     <Text style={styles.suffixText}>دفعات</Text>
                   </View>
                 </View>
+
                 {errors.numberOfPayments && (
                   <Text style={styles.errorText}>⚠️ {errors.numberOfPayments}</Text>
                 )}
 
                 <View style={styles.chipsRow}>
-                  {["2", "3", "4", "6"].map((p) => (
+                  {["2", "3", "4", "5", "6"].map((p) => (
                     <TouchableOpacity
                       key={`pay-${p}`}
                       onPress={() =>
@@ -503,7 +796,24 @@ export default function App() {
 
               {/* Input 2: كل كام شهر */}
               <View style={styles.innerField}>
-                <Text style={styles.subFieldLabel}>كل كام شهر (الدورية)</Text>
+                <View style={styles.labelRow}>
+                  <Text style={styles.subFieldLabel}>كل كام شهر (الدورية)</Text>
+                  <View style={styles.steppersInline}>
+                    <TouchableOpacity
+                      onPress={() => adjustIntervalMonths(-1)}
+                      style={styles.miniStepperBtn}
+                    >
+                      <Ionicons name="remove" size={14} color="#b45309" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => adjustIntervalMonths(1)}
+                      style={styles.miniStepperBtn}
+                    >
+                      <Ionicons name="add" size={14} color="#b45309" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 <View
                   style={[
                     styles.inputGroup,
@@ -528,6 +838,7 @@ export default function App() {
                     <Text style={styles.suffixText}>شهور</Text>
                   </View>
                 </View>
+
                 {errors.paymentIntervalMonths && (
                   <Text style={styles.errorText}>
                     ⚠️ {errors.paymentIntervalMonths}
@@ -569,7 +880,7 @@ export default function App() {
                 </View>
               </View>
 
-              {/* Seasonal Total Months Badge */}
+              {/* Total Duration Banner */}
               {seasonalTotalMonths > 0 && (
                 <View style={styles.totalDurationBanner}>
                   <Text style={styles.bannerLabel}>إجمالي فترة السداد الكلية:</Text>
@@ -584,7 +895,7 @@ export default function App() {
             </View>
           )}
 
-          {/* 6. Interest Method */}
+          {/* ---------------- 6. Interest Method ---------------- */}
           <View style={styles.fieldSection}>
             <Text style={styles.fieldLabel}>طريقة حساب الفائدة</Text>
             <View style={styles.toggleRow}>
@@ -632,7 +943,7 @@ export default function App() {
         </View>
 
         {/* ==================================================== */}
-        {/* Results Card */}
+        {/* 4. Results Card (نفس كارت النتائج في الموقع) */}
         {/* ==================================================== */}
         {result ? (
           <View style={styles.resultCard}>
@@ -720,8 +1031,23 @@ export default function App() {
                 </Text>
               </View>
 
-              {/* Action Buttons */}
+              {/* Action Buttons: PDF Download, Share, Reset */}
               <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  onPress={handleDownloadPDF}
+                  style={styles.pdfButton}
+                  disabled={isExportingPDF}
+                >
+                  {isExportingPDF ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Ionicons name="document-text" size={16} color="#ffffff" />
+                  )}
+                  <Text style={styles.pdfButtonText}>
+                    {isExportingPDF ? "جاري التجهيز..." : "تحميل PDF"}
+                  </Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   onPress={handleShare}
                   style={styles.shareButton}
@@ -741,7 +1067,6 @@ export default function App() {
             </View>
           </View>
         ) : (
-          /* Placeholder Card when rate is missing */
           <View style={styles.placeholderCard}>
             <View style={styles.placeholderIcon}>
               <Ionicons name="information-circle-outline" size={28} color="#d97706" />
@@ -756,15 +1081,15 @@ export default function App() {
         )}
 
         {/* ==================================================== */}
-        {/* Schedule Table */}
+        {/* 5. Schedule Table (نفس جدول السداد والـ PDF) */}
         {/* ==================================================== */}
         {result && (
           <View style={styles.card}>
-            <TouchableOpacity
-              onPress={() => setIsScheduleExpanded(!isScheduleExpanded)}
-              style={styles.scheduleHeader}
-            >
-              <View style={styles.rowAlign}>
+            <View style={styles.scheduleHeaderRow}>
+              <TouchableOpacity
+                onPress={() => setIsScheduleExpanded(!isScheduleExpanded)}
+                style={styles.scheduleTitleTouch}
+              >
                 <View style={styles.scheduleIconWrapper}>
                   <Ionicons name="list" size={18} color="#004d40" />
                 </View>
@@ -775,95 +1100,156 @@ export default function App() {
                     {result.installmentType === "monthly" ? "قسط" : "دفعة"}
                   </Text>
                 </View>
+              </TouchableOpacity>
+
+              <View style={styles.scheduleHeaderActions}>
+                <TouchableOpacity
+                  onPress={handleDownloadPDF}
+                  style={styles.miniPdfBtn}
+                  disabled={isExportingPDF}
+                >
+                  {isExportingPDF ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Ionicons name="download-outline" size={14} color="#ffffff" />
+                  )}
+                  <Text style={styles.miniPdfBtnText}>PDF</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setIsScheduleExpanded(!isScheduleExpanded)}
+                  style={styles.toggleCollapseBtn}
+                >
+                  <Ionicons
+                    name={isScheduleExpanded ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color="#004d40"
+                  />
+                </TouchableOpacity>
               </View>
-              <Ionicons
-                name={isScheduleExpanded ? "chevron-up" : "chevron-down"}
-                size={20}
-                color="#004d40"
-              />
-            </TouchableOpacity>
+            </View>
 
             {isScheduleExpanded && (
               <View style={styles.scheduleContent}>
-                {/* Table Header */}
-                <View style={styles.tableHeaderRow}>
-                  <Text style={[styles.tableHeaderCell, { flex: 0.6 }]}>#</Text>
-                  <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>الاستحقاق</Text>
-                  <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>القسط</Text>
-                  <Text style={[styles.tableHeaderCell, { flex: 1.0 }]}>الفائدة</Text>
-                  <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>المتبقي</Text>
-                </View>
-
-                {/* Table Rows */}
-                {result.schedule.map((item, idx) => {
-                  const isEven = idx % 2 === 0;
-                  return (
-                    <View
-                      key={item.installmentNumber}
-                      style={[
-                        styles.tableRow,
-                        isEven ? styles.tableRowEven : styles.tableRowOdd,
-                      ]}
-                    >
-                      <Text style={[styles.tableCell, { flex: 0.6, fontWeight: "bold" }]}>
-                        {item.installmentNumber}
-                      </Text>
-                      <Text style={[styles.tableCell, { flex: 1.2, fontSize: 11 }]}>
-                        {item.formattedDueDate}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.tableCell,
-                          { flex: 1.2, fontWeight: "bold", color: "#004d40" },
-                        ]}
-                      >
-                        {formatCurrency(item.paymentAmount, { showCurrency: false })}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.tableCell,
-                          { flex: 1.0, color: "#d97706", fontSize: 11 },
-                        ]}
-                      >
-                        {formatCurrency(item.interestPart, { showCurrency: false })}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.tableCell,
-                          { flex: 1.2, color: "#64748b", fontSize: 11 },
-                        ]}
-                      >
-                        {formatCurrency(item.remainingBalance, { showCurrency: false })}
-                      </Text>
+                {/* Horizontal Scroll Table */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                  <View>
+                    {/* Table Header */}
+                    <View style={styles.tableHeaderRow}>
+                      <Text style={[styles.tableHeaderCell, { width: 35 }]}>#</Text>
+                      <Text style={[styles.tableHeaderCell, { width: 85 }]}>البيان</Text>
+                      <Text style={[styles.tableHeaderCell, { width: 95 }]}>الاستحقاق</Text>
+                      <Text style={[styles.tableHeaderCell, { width: 95 }]}>قيمة القسط</Text>
+                      <Text style={[styles.tableHeaderCell, { width: 85 }]}>الفائدة</Text>
+                      <Text style={[styles.tableHeaderCell, { width: 85 }]}>الأصل</Text>
+                      <Text style={[styles.tableHeaderCell, { width: 95 }]}>المتبقي</Text>
                     </View>
-                  );
-                })}
 
-                {/* Total Footer */}
-                <View style={styles.tableFooterRow}>
-                  <Text style={[styles.tableFooterText, { flex: 1.8 }]}>
-                    الإجمالي ({result.schedule.length})
-                  </Text>
-                  <Text style={[styles.tableFooterText, { flex: 1.2 }]}>
-                    {formatCurrency(result.totalPayable, { showCurrency: false })}
-                  </Text>
-                  <Text style={[styles.tableFooterText, { flex: 1.0, color: "#fef08a" }]}>
-                    {formatCurrency(result.totalInterest, { showCurrency: false })}
-                  </Text>
-                  <Text style={[styles.tableFooterText, { flex: 1.2 }]}>0.00</Text>
-                </View>
+                    {/* Table Rows */}
+                    {result.schedule.map((item, idx) => {
+                      const isEven = idx % 2 === 0;
+                      return (
+                        <View
+                          key={item.installmentNumber}
+                          style={[
+                            styles.tableRow,
+                            isEven && styles.tableRowEven,
+                          ]}
+                        >
+                          <Text style={[styles.tableCell, { width: 35, textAlign: "center", fontWeight: "700" }]}>
+                            {item.installmentNumber}
+                          </Text>
+                          <Text style={[styles.tableCell, { width: 85, color: "#004d40", fontWeight: "700" }]}>
+                            {item.dueLabel}
+                          </Text>
+                          <Text style={[styles.tableCell, { width: 95, textAlign: "center" }]}>
+                            {item.formattedDueDate}
+                          </Text>
+                          <Text style={[styles.tableCell, { width: 95, fontWeight: "700", color: "#004d40" }]}>
+                            {formatCurrency(item.paymentAmount)}
+                          </Text>
+                          <Text style={[styles.tableCell, { width: 85, color: "#d97706" }]}>
+                            {formatCurrency(item.interestPart)}
+                          </Text>
+                          <Text style={[styles.tableCell, { width: 85 }]}>
+                            {formatCurrency(item.principalPart)}
+                          </Text>
+                          <Text style={[styles.tableCell, { width: 95, color: "#64748b" }]}>
+                            {formatCurrency(item.remainingBalance)}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
               </View>
             )}
           </View>
         )}
 
-        {/* Footer */}
-        <View style={styles.footerContainer}>
-          <Text style={styles.footerText}>
-            • الحسابات استرشادية وتخضع للشروط والأحكام وموافقة شركة تساهيل للتمويل.
+        {/* ==================================================== */}
+        {/* 6. TrustRow Section (نفس ميزات الثقة في الموقع) */}
+        {/* ==================================================== */}
+        <View style={styles.trustSection}>
+          <Text style={styles.trustTitle}>لماذا تختار التمويل من تساهيل؟</Text>
+          <Text style={styles.trustSubtitle}>
+            خطوات سهلة وبسيطة لدعم نمو أعمالك ومشروعاتك في كافة محافظات مصر
           </Text>
-          <Text style={styles.footerCopyright}>
-            جميع الحقوق محفوظة © شركة تساهيل للتمويل {new Date().getFullYear()}
+
+          <View style={styles.trustGrid}>
+            <View style={styles.trustCard}>
+              <View style={[styles.trustIconBox, { backgroundColor: "#fef3c7" }]}>
+                <Ionicons name="flash" size={20} color="#d97706" />
+              </View>
+              <Text style={styles.trustCardTitle}>أسرع الإجراءات</Text>
+              <Text style={styles.trustCardDesc}>
+                دراسة ائتمانية فورية وسرعة في صرف التمويل لمساعدتك على بدء نشاطك بدون انتظار.
+              </Text>
+            </View>
+
+            <View style={styles.trustCard}>
+              <View style={[styles.trustIconBox, { backgroundColor: "#e0f2f1" }]}>
+                <Ionicons name="document-text" size={20} color="#004d40" />
+              </View>
+              <Text style={styles.trustCardTitle}>أبسط الأوراق</Text>
+              <Text style={styles.trustCardDesc}>
+                إجراءات ومستندات مبسطة بدون تعقيدات تناسب جميع المشروعات والشركات الصغيرة.
+              </Text>
+            </View>
+
+            <View style={styles.trustCard}>
+              <View style={[styles.trustIconBox, { backgroundColor: "#e2e8f0" }]}>
+                <Ionicons name="ribbon" size={20} color="#00796b" />
+              </View>
+              <Text style={styles.trustCardTitle}>أفضل البرامج التمويلية</Text>
+              <Text style={styles.trustCardDesc}>
+                حلول تمويل مرنة بأنظمة سداد شهرية وموسمية مصممة خصيصاً لمشروعك.
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ==================================================== */}
+        {/* 7. Official Footer (نفس فوتر الموقع مع بيانات المطور) */}
+        {/* ==================================================== */}
+        <View style={styles.footer}>
+          <View style={styles.footerBrandRow}>
+            <TasaheelLogo size={20} />
+            <Text style={styles.footerBrandTitle}>تساهيل - حاسبة القسط</Text>
+          </View>
+          <Text style={styles.footerDesc}>
+            حاسبة مخصصة لموظفي وعملاء شركة تساهيل لحساب أقساط التمويل الشهرية والموسمية وجدول السداد بدقة وفورية.
+          </Text>
+
+          {/* Developer Credit Box */}
+          <View style={styles.developerBox}>
+            <Text style={styles.developerLabel}>من تطوير:</Text>
+            <Text style={styles.developerName}>بشمهندس كيرلس فؤاد شفيق</Text>
+            <Text style={styles.developerRole}>عضو رقابة كوم الفرج</Text>
+          </View>
+
+          <Text style={styles.copyrightText}>
+            تساهيل مصر © 2026 جميع الحقوق محفوظة.
           </Text>
         </View>
       </ScrollView>
@@ -878,68 +1264,181 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: "#004d40",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#00332a",
+    borderBottomColor: "#00382e",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   headerContent: {
     flexDirection: "row-reverse",
     alignItems: "center",
+    justifyContent: "space-between",
   },
-  headerIconWrapper: {
+  headerBrandRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  logoBox: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#00695c",
+    backgroundColor: "#00796b",
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 12,
+    borderWidth: 1,
+    borderColor: "#26a69a",
   },
   headerTitles: {
-    flex: 1,
     alignItems: "flex-end",
+    flex: 1,
   },
   headerTitle: {
-    color: "#ffffff",
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "900",
+    color: "#ffffff",
+    textAlign: "right",
   },
   headerSubtitle: {
-    color: "#80cbc4",
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 10,
+    color: "#b2dfdb",
+    fontWeight: "600",
+    textAlign: "right",
+    marginTop: 1,
   },
+  hotlineButton: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: "#00382e",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#00695c",
+    gap: 6,
+  },
+  hotlineIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: "#d97706",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  hotlineTextCol: {
+    alignItems: "flex-end",
+  },
+  hotlineLabel: {
+    fontSize: 8,
+    color: "#80cbc4",
+    fontWeight: "600",
+  },
+  hotlineNumber: {
+    fontSize: 12,
+    color: "#fde68a",
+    fontWeight: "900",
+  },
+
   scrollContainer: {
     flex: 1,
     backgroundColor: "#f8fafc",
   },
   scrollContent: {
-    padding: 14,
     paddingBottom: 40,
   },
-  card: {
+
+  /* Hero Section */
+  heroSection: {
+    backgroundColor: "#f1f5f9",
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+  },
+  heroBadge: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
     backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 20,
-    padding: 16,
-    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    gap: 6,
+    marginBottom: 8,
+  },
+  heroBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#004d40",
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#0f172a",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  heroHighlight: {
+    color: "#004d40",
+  },
+  heroSubtitle: {
+    fontSize: 12,
+    color: "#475569",
+    textAlign: "center",
+    fontWeight: "500",
+    lineHeight: 18,
+    maxWidth: 320,
+    marginBottom: 10,
+  },
+  heroBold: {
+    fontWeight: "800",
+    color: "#004d40",
+  },
+  heroPillsRow: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+  },
+  heroPill: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    gap: 4,
+  },
+  heroPillText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#004d40",
+  },
+
+  /* Card */
+  card: {
+    backgroundColor: "#ffffff",
+    marginHorizontal: 14,
+    marginTop: 14,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: "row-reverse",
     alignItems: "center",
+    gap: 10,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
@@ -952,116 +1451,123 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0f2f1",
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 10,
   },
   cardHeaderTitle: {
     fontSize: 15,
-    fontWeight: "bold",
-    color: "#0f172a",
+    fontWeight: "800",
+    color: "#004d40",
     textAlign: "right",
   },
   cardHeaderSubtitle: {
     fontSize: 11,
     color: "#64748b",
-    marginTop: 1,
     textAlign: "right",
+    marginTop: 1,
   },
+
   fieldSection: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   labelRow: {
     flexDirection: "row-reverse",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 6,
-  },
-  rowAlign: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
   },
   fieldLabel: {
     fontSize: 13,
-    fontWeight: "bold",
+    fontWeight: "700",
     color: "#0f172a",
     textAlign: "right",
   },
   hintText: {
     fontSize: 10,
-    color: "#64748b",
+    color: "#94a3b8",
+    fontWeight: "500",
   },
   inputGroup: {
     flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
     borderWidth: 1,
     borderColor: "#cbd5e1",
     borderRadius: 12,
-    backgroundColor: "#f8fafc",
     overflow: "hidden",
-    alignItems: "center",
+  },
+  inputError: {
+    borderColor: "#ef4444",
+    backgroundColor: "#fef2f2",
+  },
+  inputWarning: {
+    borderColor: "#f59e0b",
+    backgroundColor: "#fffbeb",
   },
   inputField: {
     flex: 1,
-    height: 44,
     paddingHorizontal: 12,
-    fontSize: 15,
-    fontWeight: "bold",
+    paddingVertical: 10,
+    fontSize: 16,
+    fontWeight: "700",
     color: "#0f172a",
     textAlign: "right",
   },
   inputSuffix: {
     backgroundColor: "#e0f2f1",
     paddingHorizontal: 12,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "center",
+    paddingVertical: 12,
     borderLeftWidth: 1,
     borderLeftColor: "#b2dfdb",
   },
   suffixText: {
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: "#004d40",
   },
-  inputError: {
-    borderColor: "#f87171",
-    backgroundColor: "#fef2f2",
-  },
-  inputWarning: {
-    borderColor: "#fbbf24",
-    backgroundColor: "#fffbeb",
-  },
   errorText: {
+    color: "#ef4444",
     fontSize: 11,
-    color: "#dc2626",
-    marginTop: 4,
+    fontWeight: "600",
     textAlign: "right",
+    marginTop: 4,
   },
   warningText: {
+    color: "#b45309",
     fontSize: 11,
-    color: "#b45309",
-    marginTop: 4,
+    fontWeight: "600",
     textAlign: "right",
+    marginTop: 4,
   },
-  badgeRequired: {
-    backgroundColor: "#fef3c7",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+
+  /* Steppers */
+  steppersRow: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 8,
+  },
+  stepperBtn: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#fde68a",
+    borderColor: "#cbd5e1",
   },
-  badgeRequiredText: {
-    fontSize: 9,
-    fontWeight: "bold",
-    color: "#b45309",
+  stepperBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#004d40",
   },
+
   presetContainer: {
-    marginTop: 6,
+    marginTop: 8,
   },
   presetTitle: {
-    fontSize: 10,
+    fontSize: 11,
+    fontWeight: "700",
     color: "#64748b",
-    marginBottom: 4,
     textAlign: "right",
+    marginBottom: 4,
   },
   chipsRow: {
     flexDirection: "row-reverse",
@@ -1069,10 +1575,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
     backgroundColor: "#f1f5f9",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
@@ -1086,51 +1592,73 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 11,
-    fontWeight: "600",
-    color: "#334155",
+    fontWeight: "700",
+    color: "#475569",
   },
   chipTextSelected: {
     color: "#ffffff",
-    fontWeight: "bold",
   },
-  chipSmall: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+
+  rowAlign: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+  },
+  badgeRequired: {
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: "#f1f5f9",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#fde68a",
   },
-  chipTextSmall: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#334155",
+  badgeRequiredText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#b45309",
   },
-  toggleRow: {
+
+  dateButtonsRow: {
     flexDirection: "row-reverse",
     gap: 8,
-    marginTop: 4,
+    marginTop: 6,
+  },
+  dateQuickBtn: {
+    backgroundColor: "#e0f2f1",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#b2dfdb",
+  },
+  dateQuickBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#004d40",
+  },
+
+  toggleRow: {
+    flexDirection: "row-reverse",
+    backgroundColor: "#f1f5f9",
+    padding: 4,
+    borderRadius: 12,
+    gap: 4,
   },
   toggleButton: {
     flex: 1,
     flexDirection: "row-reverse",
-    height: 42,
-    backgroundColor: "#f1f5f9",
-    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 8,
+    borderRadius: 8,
     gap: 6,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
   },
   toggleButtonActive: {
     backgroundColor: "#004d40",
-    borderColor: "#004d40",
   },
   toggleButtonText: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: "#475569",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748b",
   },
   toggleButtonTextActive: {
     color: "#ffffff",
@@ -1138,48 +1666,122 @@ const styles = StyleSheet.create({
   methodSubtext: {
     fontSize: 9,
     color: "#94a3b8",
-    marginRight: 2,
   },
+
+  /* Monthly Box */
   monthlyBox: {
-    backgroundColor: "#f0fdfa",
+    backgroundColor: "#f0fdf4",
     padding: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#ccfbf1",
-    marginBottom: 14,
+    borderColor: "#bbf7d0",
+    marginBottom: 16,
   },
-  boxTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#0f172a",
-    textAlign: "right",
-  },
-  durationValue: {
+  durationBadge: {
     fontSize: 13,
-    fontWeight: "900",
+    fontWeight: "800",
     color: "#004d40",
   },
   durationYear: {
-    fontSize: 10,
-    fontWeight: "normal",
+    fontSize: 11,
+    fontWeight: "500",
     color: "#64748b",
   },
+  durationStepperRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 8,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+  stepperIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#e0f2f1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  durationDisplay: {
+    alignItems: "center",
+  },
+  durationDisplayText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#004d40",
+  },
+  durationDisplaySub: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  targetSection: {
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  targetSectionTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#004d40",
+    textAlign: "right",
+    marginBottom: 6,
+  },
+  targetChip: {
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#86efac",
+    alignItems: "center",
+  },
+  targetChipSelected: {
+    backgroundColor: "#004d40",
+    borderColor: "#004d40",
+  },
+  targetChipText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#004d40",
+  },
+  targetChipTextSelected: {
+    color: "#ffffff",
+  },
+  targetChipSub: {
+    fontSize: 9,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  targetChipSubSelected: {
+    color: "#b2dfdb",
+  },
+
+  /* Seasonal Box */
   seasonalBox: {
     backgroundColor: "#fffbeb",
     padding: 12,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#fde68a",
-    marginBottom: 14,
+    marginBottom: 16,
   },
   seasonalHeader: {
     flexDirection: "row-reverse",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#fef3c7",
     marginBottom: 10,
+  },
+  boxTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#b45309",
   },
   badgeFrequency: {
     backgroundColor: "#d97706",
@@ -1189,63 +1791,97 @@ const styles = StyleSheet.create({
   },
   badgeFrequencyText: {
     fontSize: 10,
-    fontWeight: "bold",
     color: "#ffffff",
+    fontWeight: "800",
   },
   innerField: {
     marginBottom: 10,
   },
   subFieldLabel: {
-    fontSize: 11,
-    fontWeight: "bold",
+    fontSize: 12,
+    fontWeight: "700",
     color: "#0f172a",
-    marginBottom: 4,
     textAlign: "right",
   },
-  totalDurationBanner: {
+  steppersInline: {
     flexDirection: "row-reverse",
-    justifyContent: "space-between",
+    gap: 4,
+  },
+  miniStepperBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: "#fef3c7",
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    padding: 10,
-    borderRadius: 10,
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: "#fde68a",
-    marginTop: 6,
   },
-  bannerLabel: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: "#0f172a",
+  chipSmall: {
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#fde68a",
   },
-  bannerValue: {
-    fontSize: 12,
-    fontWeight: "900",
+  chipTextSmall: {
+    fontSize: 10,
+    fontWeight: "700",
     color: "#b45309",
   },
-  bannerYear: {
-    fontSize: 10,
-    fontWeight: "normal",
-    color: "#64748b",
+  totalDurationBanner: {
+    backgroundColor: "#fef3c7",
+    borderRadius: 10,
+    padding: 8,
+    marginTop: 4,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#fde68a",
   },
+  bannerLabel: {
+    fontSize: 10,
+    color: "#92400e",
+    fontWeight: "600",
+  },
+  bannerValue: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#b45309",
+    marginTop: 2,
+  },
+  bannerYear: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#92400e",
+  },
+
+  /* Results Card */
   resultCard: {
     backgroundColor: "#ffffff",
+    marginHorizontal: 14,
+    marginTop: 14,
     borderRadius: 20,
     overflow: "hidden",
-    marginBottom: 14,
     borderWidth: 1,
     borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   resultBanner: {
     backgroundColor: "#004d40",
     padding: 16,
-    alignItems: "flex-end",
+    alignItems: "center",
   },
   badgeRow: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",
+    justifyContent: "center",
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   resultBadge: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
@@ -1254,156 +1890,178 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   resultBadgeText: {
-    color: "#ffffff",
     fontSize: 10,
-    fontWeight: "bold",
+    fontWeight: "700",
+    color: "#ffffff",
   },
   resultLabel: {
-    color: "#b2dfdb",
     fontSize: 12,
+    color: "#b2dfdb",
     fontWeight: "600",
     marginBottom: 4,
   },
   amountRow: {
     flexDirection: "row-reverse",
     alignItems: "baseline",
-    gap: 6,
+    gap: 4,
   },
   bigAmount: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "900",
     color: "#ffffff",
   },
   currencyText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#fcd34d",
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fde68a",
   },
   metricsContainer: {
     padding: 14,
   },
   metricsGrid: {
     flexDirection: "row-reverse",
-    gap: 8,
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 10,
   },
   metricBox: {
     flex: 1,
     backgroundColor: "#f8fafc",
-    padding: 10,
-    borderRadius: 12,
+    padding: 8,
+    borderRadius: 10,
+    alignItems: "center",
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    alignItems: "flex-end",
   },
   metricBoxAmber: {
     backgroundColor: "#fffbeb",
     borderColor: "#fde68a",
   },
   metricBoxBrand: {
-    backgroundColor: "#f0fdfa",
-    borderColor: "#ccfbf1",
+    backgroundColor: "#f0fdf4",
+    borderColor: "#bbf7d0",
   },
   metricLabel: {
-    fontSize: 10,
-    fontWeight: "bold",
+    fontSize: 9,
     color: "#64748b",
+    fontWeight: "600",
     marginBottom: 2,
-    textAlign: "right",
   },
   metricValue: {
-    fontSize: 12,
-    fontWeight: "900",
+    fontSize: 11,
+    fontWeight: "800",
     color: "#0f172a",
-    textAlign: "right",
   },
   detailsRow: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
-    backgroundColor: "#f1f5f9",
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
   },
   detailsText: {
     fontSize: 11,
     color: "#64748b",
   },
   detailsBold: {
-    fontWeight: "bold",
-    color: "#0f172a",
+    fontWeight: "800",
+    color: "#004d40",
   },
   actionsRow: {
     flexDirection: "row-reverse",
     gap: 8,
+    marginTop: 10,
   },
-  shareButton: {
-    flex: 2,
+  pdfButton: {
+    flex: 1.2,
     flexDirection: "row-reverse",
-    height: 42,
-    backgroundColor: "#00695c",
-    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#00796b",
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  pdfButtonText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  shareButton: {
+    flex: 1,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#004d40",
+    paddingVertical: 10,
+    borderRadius: 10,
     gap: 6,
   },
   shareButtonText: {
     color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "bold",
+    fontSize: 11,
+    fontWeight: "700",
   },
   resetButton: {
-    flex: 1,
     flexDirection: "row-reverse",
-    height: 42,
-    backgroundColor: "#f1f5f9",
-    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#cbd5e1",
     gap: 4,
   },
   resetButtonText: {
     color: "#64748b",
-    fontSize: 12,
-    fontWeight: "bold",
+    fontSize: 11,
+    fontWeight: "700",
   },
+
   placeholderCard: {
     backgroundColor: "#ffffff",
+    marginHorizontal: 14,
+    marginTop: 14,
     borderRadius: 20,
     padding: 24,
     alignItems: "center",
-    marginBottom: 14,
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
   placeholderIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#fffbeb",
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#fef3c7",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   placeholderTitle: {
     fontSize: 15,
-    fontWeight: "bold",
-    color: "#0f172a",
+    fontWeight: "800",
+    color: "#004d40",
     marginBottom: 4,
-    textAlign: "center",
   },
   placeholderSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#64748b",
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 16,
   },
-  scheduleHeader: {
+
+  /* Schedule Table */
+  scheduleHeaderRow: {
     flexDirection: "row-reverse",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+  },
+  scheduleTitleTouch: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
   },
   scheduleIconWrapper: {
     width: 34,
@@ -1412,74 +2070,176 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0f2f1",
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 10,
+  },
+  scheduleHeaderActions: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+  },
+  miniPdfBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: "#00796b",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    gap: 4,
+  },
+  miniPdfBtnText: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  toggleCollapseBtn: {
+    padding: 6,
   },
   scheduleContent: {
     marginTop: 12,
     borderTopWidth: 1,
     borderTopColor: "#f1f5f9",
-    paddingTop: 10,
+    paddingTop: 8,
   },
   tableHeaderRow: {
     flexDirection: "row-reverse",
     backgroundColor: "#f1f5f9",
     paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 8,
-    marginBottom: 4,
+    paddingHorizontal: 4,
+    borderRadius: 6,
   },
   tableHeaderCell: {
     fontSize: 10,
-    fontWeight: "bold",
-    color: "#0f172a",
-    textAlign: "center",
+    fontWeight: "800",
+    color: "#004d40",
+    textAlign: "right",
   },
   tableRow: {
     flexDirection: "row-reverse",
     paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
   },
   tableRowEven: {
-    backgroundColor: "#ffffff",
-  },
-  tableRowOdd: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#fafafa",
   },
   tableCell: {
     fontSize: 10,
-    color: "#334155",
-    textAlign: "center",
+    color: "#0f172a",
+    textAlign: "right",
   },
-  tableFooterRow: {
-    flexDirection: "row-reverse",
-    backgroundColor: "#004d40",
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    borderRadius: 8,
-    marginTop: 6,
-  },
-  tableFooterText: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#ffffff",
-    textAlign: "center",
-  },
-  footerContainer: {
-    paddingVertical: 16,
+
+  /* TrustRow Section */
+  trustSection: {
+    marginHorizontal: 14,
+    marginTop: 24,
     alignItems: "center",
   },
-  footerText: {
-    fontSize: 10,
+  trustTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#004d40",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  trustSubtitle: {
+    fontSize: 11,
     color: "#64748b",
     textAlign: "center",
+    maxWidth: 280,
+    marginBottom: 12,
+  },
+  trustGrid: {
+    gap: 10,
+    width: "100%",
+  },
+  trustCard: {
+    backgroundColor: "#ffffff",
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  trustIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  trustCardTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#004d40",
+    textAlign: "right",
+    marginBottom: 2,
+  },
+  trustCardDesc: {
+    fontSize: 11,
+    color: "#64748b",
+    textAlign: "right",
     lineHeight: 16,
+  },
+
+  /* Footer */
+  footer: {
+    backgroundColor: "#00382e",
+    marginTop: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#002820",
+  },
+  footerBrandRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 6,
   },
-  footerCopyright: {
+  footerBrandTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#ffffff",
+  },
+  footerDesc: {
+    fontSize: 11,
+    color: "#b2dfdb",
+    textAlign: "center",
+    lineHeight: 16,
+    maxWidth: 300,
+    marginBottom: 14,
+  },
+  developerBox: {
+    backgroundColor: "#002820",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#004d40",
+    marginBottom: 14,
+    width: "100%",
+  },
+  developerLabel: {
     fontSize: 10,
-    color: "#94a3b8",
+    color: "#80cbc4",
+    fontWeight: "600",
+  },
+  developerName: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#fde68a",
+    marginVertical: 2,
+  },
+  developerRole: {
+    fontSize: 11,
+    color: "#ffffff",
+    fontWeight: "700",
+  },
+  copyrightText: {
+    fontSize: 10,
+    color: "#80cbc4",
     textAlign: "center",
   },
 });
