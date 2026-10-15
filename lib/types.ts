@@ -18,6 +18,7 @@ export interface CalculationInput {
   // خاص بالموسمي
   repaymentPeriodMonths?: number; // فترة السداد بالشهور (1-36)
   numberOfPayments?: number; // عدد الدفعات
+  paymentIntervalMonths?: number; // دورية السداد بالأشهر (كل كام شهر)
 }
 
 export interface ScheduleItem {
@@ -60,7 +61,8 @@ export interface FormState {
   interestMethod: InterestMethod;
   monthlyDuration: number;
   repaymentPeriodMonths: number;
-  numberOfPayments: number;
+  numberOfPayments: string; // عدد الدفعات (نص لتسهيل الكتابة والمسح)
+  paymentIntervalMonths: string; // كل كام شهر (نص لتسهيل الكتابة والمسح)
 }
 
 export interface FormErrors {
@@ -70,5 +72,6 @@ export interface FormErrors {
   monthlyDuration?: string;
   repaymentPeriodMonths?: string;
   numberOfPayments?: string;
+  paymentIntervalMonths?: string;
 }
 

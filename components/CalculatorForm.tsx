@@ -73,10 +73,9 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
     onChange("firstInstallmentDate", `${yyyy}-${mm}-${dd}`);
   };
 
-  const seasonalInterval =
-    form.numberOfPayments > 0
-      ? form.repaymentPeriodMonths / form.numberOfPayments
-      : 0;
+  const parsedPayments = parseInt(String(form.numberOfPayments || ""), 10) || 0;
+  const parsedInterval = parseInt(String(form.paymentIntervalMonths || ""), 10) || 0;
+  const seasonalTotalMonths = parsedPayments * parsedInterval;
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-card border border-surface-200 transition-all">
@@ -427,95 +426,166 @@ export const CalculatorForm: React.FC<CalculatorFormProps> = ({
                 <span>نظام السداد الموسمي</span>
               </span>
               <div className="text-[11px] px-2.5 py-0.5 rounded-full bg-accent-500 text-white font-bold">
-                {seasonalInterval > 0 &&
-                  (Number.isInteger(seasonalInterval)
-                    ? `دفعة كل ${seasonalInterval} شهور`
-                    : `دفعة كل ${seasonalInterval.toFixed(1)} شهر`)}
+                {parsedInterval > 0
+                  ? parsedInterval === 1
+                    ? "شهرياً (دفعة كل شهر)"
+                    : `دفعة كل ${parsedInterval} شهور`
+                  : "دورية السداد"}
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Repayment Period */}
+              {/* 1. عدد الدفعات (First input: Number of Payments) */}
               <div>
-                <label
-                  htmlFor="repaymentPeriodMonths"
-                  className="block text-xs font-bold text-brand-900 mb-1"
-                >
-                  فترة السداد الكلية
-                </label>
-                <select
-                  id="repaymentPeriodMonths"
-                  value={form.repaymentPeriodMonths}
-                  onChange={(e) => {
-                    const period = parseInt(e.target.value, 10);
-                    onChange("repaymentPeriodMonths", period);
-                    const maxAllowed = Math.min(12, period);
-                    if (form.numberOfPayments > maxAllowed) {
-                      onChange("numberOfPayments", maxAllowed);
-                    }
-                  }}
-                  className="w-full h-11 px-3 rounded-xl border border-surface-200 bg-white font-bold text-xs sm:text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-accent-400"
-                >
-                  {Array.from({ length: 36 }, (_, i) => i + 1).map((m) => (
-                    <option key={`period-${m}`} value={m}>
-                      {m} شهر ({(m / 12).toFixed(1)} سنة)
-                    </option>
-                  ))}
-                </select>
-                {errors.repaymentPeriodMonths && (
-                  <p className="mt-1 text-xs text-red-600 font-semibold">
-                    {errors.repaymentPeriodMonths}
-                  </p>
-                )}
-              </div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <label
+                    htmlFor="numberOfPayments"
+                    className="block text-xs font-bold text-brand-900"
+                  >
+                    عدد الدفعات
+                  </label>
+                  <span className="text-[10px] text-text-muted font-medium">
+                    إجمالي الدفعات
+                  </span>
+                </div>
 
-              {/* Number of Payments (Max 12) */}
-              <div>
-                <label
-                  htmlFor="numberOfPayments"
-                  className="block text-xs font-bold text-brand-900 mb-1"
+                <div
+                  className={`flex rounded-xl border transition-all overflow-hidden ${
+                    errors.numberOfPayments
+                      ? "border-red-400 bg-red-50/30"
+                      : "border-surface-200 bg-white focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/20"
+                  }`}
                 >
-                  عدد الدفعات (بحد أقصى 12 دفعة)
-                </label>
-                <select
-                  id="numberOfPayments"
-                  value={form.numberOfPayments}
-                  onChange={(e) =>
-                    onChange("numberOfPayments", parseInt(e.target.value, 10))
-                  }
-                  className="w-full h-11 px-3 rounded-xl border border-surface-200 bg-white font-bold text-xs sm:text-sm text-brand-900 focus:outline-none focus:ring-2 focus:ring-accent-400"
-                >
-                  {Array.from(
-                    { length: Math.min(12, form.repaymentPeriodMonths) },
-                    (_, i) => i + 1
-                  ).map((p) => {
-                    const interval = form.repaymentPeriodMonths / p;
-                    const intervalLabel =
-                      interval === 1
-                        ? "شهرياً"
-                        : Number.isInteger(interval)
-                        ? `كل ${interval} شهور`
-                        : `كل ${interval.toFixed(1)} شهر`;
+                  <input
+                    id="numberOfPayments"
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    value={form.numberOfPayments}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      onChange("numberOfPayments", val);
+                    }}
+                    placeholder="3"
+                    className="flex-1 min-w-0 h-11 px-3 text-right font-bold text-xs sm:text-sm bg-transparent focus:outline-none text-brand-900"
+                  />
+                  <div className="bg-surface-100 px-3 flex items-center text-xs font-bold text-brand-800 border-r border-surface-200 shrink-0">
+                    دفعات
+                  </div>
+                </div>
 
-                    const labelText =
-                      p === 1
-                        ? `دفعة واحدة (${intervalLabel})`
-                        : `${p} دفعات (${intervalLabel})`;
-
-                    return (
-                      <option key={`payment-opt-${p}`} value={p}>
-                        {labelText}
-                      </option>
-                    );
-                  })}
-                </select>
                 {errors.numberOfPayments && (
                   <p className="mt-1 text-xs text-red-600 font-semibold">
                     {errors.numberOfPayments}
                   </p>
                 )}
+
+                {/* اقتراحات سريعة لعدد الدفعات */}
+                <div className="mt-2 flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] text-text-muted font-bold ml-1">شائع:</span>
+                  {["2", "3", "4", "6"].map((p) => (
+                    <button
+                      key={`pay-opt-${p}`}
+                      type="button"
+                      onClick={() => onChange("numberOfPayments", p)}
+                      className={`px-2 py-0.5 text-[11px] font-bold rounded transition-colors ${
+                        form.numberOfPayments === p
+                          ? "bg-accent-500 text-white font-bold"
+                          : "bg-white text-text-muted hover:bg-surface-100 border border-surface-200"
+                      }`}
+                    >
+                      {p} دفعات
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. كل كام شهر (Second input: Interval in Months) */}
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <label
+                    htmlFor="paymentIntervalMonths"
+                    className="block text-xs font-bold text-brand-900"
+                  >
+                    كل كام شهر
+                  </label>
+                  <span className="text-[10px] text-text-muted font-medium">
+                    الدورية بالأشهر
+                  </span>
+                </div>
+
+                <div
+                  className={`flex rounded-xl border transition-all overflow-hidden ${
+                    errors.paymentIntervalMonths
+                      ? "border-red-400 bg-red-50/30"
+                      : "border-surface-200 bg-white focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/20"
+                  }`}
+                >
+                  <input
+                    id="paymentIntervalMonths"
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    value={form.paymentIntervalMonths}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      onChange("paymentIntervalMonths", val);
+                    }}
+                    placeholder="4"
+                    className="flex-1 min-w-0 h-11 px-3 text-right font-bold text-xs sm:text-sm bg-transparent focus:outline-none text-brand-900"
+                  />
+                  <div className="bg-surface-100 px-3 flex items-center text-xs font-bold text-brand-800 border-r border-surface-200 shrink-0">
+                    شهور
+                  </div>
+                </div>
+
+                {errors.paymentIntervalMonths && (
+                  <p className="mt-1 text-xs text-red-600 font-semibold">
+                    {errors.paymentIntervalMonths}
+                  </p>
+                )}
+
+                {/* اقتراحات سريعة لدورية السداد */}
+                <div className="mt-2 flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] text-text-muted font-bold ml-1">شائع:</span>
+                  {[
+                    { label: "كل شهرين", val: "2" },
+                    { label: "كل 3 شهور", val: "3" },
+                    { label: "كل 4 شهور", val: "4" },
+                    { label: "كل 6 شهور", val: "6" },
+                  ].map((item) => (
+                    <button
+                      key={`int-opt-${item.val}`}
+                      type="button"
+                      onClick={() => onChange("paymentIntervalMonths", item.val)}
+                      className={`px-2 py-0.5 text-[11px] font-bold rounded transition-colors ${
+                        form.paymentIntervalMonths === item.val
+                          ? "bg-accent-500 text-white font-bold"
+                          : "bg-white text-text-muted hover:bg-surface-100 border border-surface-200"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
+
+            {/* إجمالي فترة السداد المحسوبة */}
+            {seasonalTotalMonths > 0 && (
+              <div className="pt-2 border-t border-accent-200/50 flex flex-wrap items-center justify-between text-xs text-brand-900 font-bold bg-white/70 p-2.5 rounded-xl border border-accent-200/60">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-accent-600 shrink-0" />
+                  <span>إجمالي فترة السداد الكلية:</span>
+                </div>
+                <div className="text-accent-700 font-black">
+                  {seasonalTotalMonths} شهر{" "}
+                  <span className="text-[11px] font-normal text-text-muted">
+                    ({(seasonalTotalMonths / 12).toFixed(1)} سنة)
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

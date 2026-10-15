@@ -24,7 +24,8 @@ const INITIAL_FORM_STATE: FormState = {
   interestMethod: "reducing",
   monthlyDuration: 12,
   repaymentPeriodMonths: 12,
-  numberOfPayments: 3,
+  numberOfPayments: "3",
+  paymentIntervalMonths: "4",
 };
 
 export default function Home() {
@@ -40,6 +41,9 @@ export default function Home() {
     try {
       const parsedAmount = parseFloat(form.loanAmount.replace(/,/g, ""));
       const parsedRate = parseFloat(form.annualInterestRate);
+      const parsedPayments = parseInt(String(form.numberOfPayments), 10);
+      const parsedInterval = parseInt(String(form.paymentIntervalMonths), 10);
+      const totalMonths = (!isNaN(parsedPayments) && !isNaN(parsedInterval)) ? parsedPayments * parsedInterval : 12;
 
       return calculateInstallment({
         loanAmount: parsedAmount,
@@ -48,8 +52,9 @@ export default function Home() {
         installmentType: form.installmentType,
         interestMethod: form.interestMethod,
         monthlyDuration: form.monthlyDuration,
-        repaymentPeriodMonths: form.repaymentPeriodMonths,
-        numberOfPayments: form.numberOfPayments,
+        repaymentPeriodMonths: totalMonths,
+        numberOfPayments: parsedPayments || 3,
+        paymentIntervalMonths: parsedInterval || 4,
       });
     } catch (err) {
       console.error("Calculation error:", err);

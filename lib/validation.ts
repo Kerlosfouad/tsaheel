@@ -51,22 +51,27 @@ export function validateForm(form: FormState): {
       errors.monthlyDuration = `مدة التقسيط يجب أن تكون بين شهر و ${MAX_DURATION_MONTHS} شهراً (3 سنوات)`;
     }
   } else {
-    // موسمي
-    if (
-      !form.repaymentPeriodMonths ||
-      form.repaymentPeriodMonths < MIN_DURATION_MONTHS ||
-      form.repaymentPeriodMonths > MAX_DURATION_MONTHS
-    ) {
-      errors.repaymentPeriodMonths = `فترة السداد الإجمالية يجب أن تكون بين شهر و ${MAX_DURATION_MONTHS} شهراً`;
+    // موسمي: التحقق من عدد الدفعات وكل كام شهر
+    const parsedPayments = parseInt(String(form.numberOfPayments || "").trim(), 10);
+    const parsedInterval = parseInt(String(form.paymentIntervalMonths || "").trim(), 10);
+
+    if (!form.numberOfPayments || isNaN(parsedPayments) || parsedPayments < 1) {
+      errors.numberOfPayments = "يرجى كتابة عدد الدفعات (دفعة واحدة على الأقل)";
+    } else if (parsedPayments > 60) {
+      errors.numberOfPayments = "الحد الأقصى لعدد الدفعات هو 60 دفعة";
     }
 
-    const maxAllowedPayments = Math.min(12, form.repaymentPeriodMonths);
-    if (
-      !form.numberOfPayments ||
-      form.numberOfPayments < 1 ||
-      form.numberOfPayments > maxAllowedPayments
-    ) {
-      errors.numberOfPayments = `عدد الدفعات يجب أن يكون بين 1 و ${maxAllowedPayments} دفعة (الحد الأقصى 12)`;
+    if (!form.paymentIntervalMonths || isNaN(parsedInterval) || parsedInterval < 1) {
+      errors.paymentIntervalMonths = "يرجى كتابة الدورية بالأشهر (شهر واحد على الأقل)";
+    } else if (parsedInterval > 36) {
+      errors.paymentIntervalMonths = "الحد الأقصى للدورية هو 36 شهراً";
+    }
+
+    if (!errors.numberOfPayments && !errors.paymentIntervalMonths) {
+      const totalMonths = parsedPayments * parsedInterval;
+      if (totalMonths > 120) {
+        errors.numberOfPayments = `إجمالي مدة السداد (${totalMonths} شهر) يتجاوز 10 سنوات`;
+      }
     }
   }
 

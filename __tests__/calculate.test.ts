@@ -97,6 +97,25 @@ describe("Loan Calculation Logic (حاسبة أقساط تساهيل)", () => {
     expect(result.schedule[3].remainingBalance).toBe(0);
   });
 
+  // Test dynamic 2 inputs: numberOfPayments and paymentIntervalMonths
+  it("handles seasonal payments with explicit paymentIntervalMonths and dynamic numberOfPayments", () => {
+    const result = calculateInstallment({
+      loanAmount: 180000,
+      annualInterestRate: 24,
+      firstInstallmentDate: "2026-11-01",
+      installmentType: "seasonal",
+      interestMethod: "flat",
+      numberOfPayments: 3,
+      paymentIntervalMonths: 4,
+    });
+
+    expect(result.numberOfInstallments).toBe(3);
+    expect(result.intervalMonths).toBe(4);
+    expect(result.totalPeriodMonths).toBe(12);
+    expect(result.paymentFrequencyText).toBe("كل 4 شهور");
+    expect(result.schedule.length).toBe(3);
+  });
+
   // Error handling test
   it("throws error for negative or zero values", () => {
     expect(() =>

@@ -65,6 +65,7 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
     monthlyDuration = 12,
     repaymentPeriodMonths = 12,
     numberOfPayments = 3,
+    paymentIntervalMonths,
   } = input;
 
   // التحقق من صحة المدخلات الأساسية
@@ -84,14 +85,19 @@ export function calculateInstallment(input: CalculationInput): CalculationResult
     intervalMonths = 1;
     paymentFrequencyText = "شهرياً";
   } else {
-    totalPeriodMonths = Math.max(1, Math.min(36, Math.round(repaymentPeriodMonths)));
-    numberOfInstallments = Math.max(
-      1,
-      Math.min(12, Math.min(totalPeriodMonths, Math.round(numberOfPayments)))
-    );
-    intervalMonths = totalPeriodMonths / numberOfInstallments;
+    if (paymentIntervalMonths && paymentIntervalMonths > 0) {
+      intervalMonths = Math.max(1, paymentIntervalMonths);
+      numberOfInstallments = Math.max(1, Math.round(numberOfPayments || 1));
+      totalPeriodMonths = numberOfInstallments * intervalMonths;
+    } else {
+      totalPeriodMonths = Math.max(1, Math.min(60, Math.round(repaymentPeriodMonths)));
+      numberOfInstallments = Math.max(
+        1,
+        Math.min(totalPeriodMonths, Math.round(numberOfPayments))
+      );
+      intervalMonths = totalPeriodMonths / numberOfInstallments;
+    }
 
-    
     if (intervalMonths === 1) {
       paymentFrequencyText = "شهرياً";
     } else if (Number.isInteger(intervalMonths)) {
